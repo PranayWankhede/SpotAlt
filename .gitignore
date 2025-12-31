@@ -1,0 +1,24 @@
+# --- Vez.ai Private Data ---
+# These folders will contain your personal file indexes. 
+# We ignore them so your private data stays on your machine.
+.vez/
+index/
+storage/
+*.db
+*.db-shm
+*.db-wal
+*.vec
+
+# --- AI Models ---
+# Large files that shouldn't be on GitHub
+models/
+*.onnx
+*.bin
+*.gguf
+
+# --- System & Environment ---
+.DS_Store
+.env
+venv/
+__pycache__/
+target/
