@@ -22,3 +22,8 @@ models/
 venv/
 __pycache__/
 target/
+
+
+# Added by cargo
+
+/target
