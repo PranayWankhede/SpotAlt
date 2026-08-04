@@ -1,5 +1,5 @@
 # --- Vez.ai Private Data ---
-# These folders will contain your personal file indexes. 
+# These folders will contain your personal file indexes.
 # We ignore them so your private data stays on your machine.
 .vez/
 index/
@@ -22,8 +22,11 @@ models/
 venv/
 __pycache__/
 target/
-
-
-# Added by cargo
-
 /target
+
+# --- Xcode ---
+.build/
+DerivedData/
+build/
+*.xcuserstate
+xcuserdata/
