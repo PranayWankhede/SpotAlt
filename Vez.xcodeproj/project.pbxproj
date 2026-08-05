@@ -16,6 +16,10 @@
 		300000000000000000000007 /* SettingsWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 400000000000000000000007 /* SettingsWindowController.swift */; };
 		300000000000000000000008 /* PanelPositioningTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 400000000000000000000008 /* PanelPositioningTests.swift */; };
 		300000000000000000000009 /* Carbon.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 40000000000000000000000B /* Carbon.framework */; };
+		30000000000000000000000A /* SearchLocationStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40000000000000000000000C /* SearchLocationStore.swift */; };
+		30000000000000000000000B /* FilenameIndex.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40000000000000000000000D /* FilenameIndex.swift */; };
+		30000000000000000000000C /* IndexManagerWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40000000000000000000000E /* IndexManagerWindowController.swift */; };
+		30000000000000000000000D /* FilenameIndexTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40000000000000000000000F /* FilenameIndexTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -42,6 +46,10 @@
 		400000000000000000000009 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		40000000000000000000000A /* Vez.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Vez.entitlements; sourceTree = "<group>"; };
 		40000000000000000000000B /* Carbon.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Carbon.framework; path = System/Library/Frameworks/Carbon.framework; sourceTree = SDKROOT; };
+		40000000000000000000000C /* SearchLocationStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchLocationStore.swift; sourceTree = "<group>"; };
+		40000000000000000000000D /* FilenameIndex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilenameIndex.swift; sourceTree = "<group>"; };
+		40000000000000000000000E /* IndexManagerWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IndexManagerWindowController.swift; sourceTree = "<group>"; };
+		40000000000000000000000F /* FilenameIndexTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilenameIndexTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -92,6 +100,9 @@
 				400000000000000000000005 /* SearchPanelController.swift */,
 				400000000000000000000006 /* SearchViewController.swift */,
 				400000000000000000000007 /* SettingsWindowController.swift */,
+				40000000000000000000000C /* SearchLocationStore.swift */,
+				40000000000000000000000D /* FilenameIndex.swift */,
+				40000000000000000000000E /* IndexManagerWindowController.swift */,
 				400000000000000000000009 /* Info.plist */,
 				40000000000000000000000A /* Vez.entitlements */,
 			);
@@ -102,6 +113,7 @@
 			isa = PBXGroup;
 			children = (
 				400000000000000000000008 /* PanelPositioningTests.swift */,
+				40000000000000000000000F /* FilenameIndexTests.swift */,
 			);
 			path = VezTests;
 			sourceTree = "<group>";
@@ -211,6 +223,9 @@
 				300000000000000000000005 /* SearchPanelController.swift in Sources */,
 				300000000000000000000006 /* SearchViewController.swift in Sources */,
 				300000000000000000000007 /* SettingsWindowController.swift in Sources */,
+				30000000000000000000000A /* SearchLocationStore.swift in Sources */,
+				30000000000000000000000B /* FilenameIndex.swift in Sources */,
+				30000000000000000000000C /* IndexManagerWindowController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -219,6 +234,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				300000000000000000000008 /* PanelPositioningTests.swift in Sources */,
+				30000000000000000000000D /* FilenameIndexTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -380,4 +396,3 @@
 	};
 	rootObject = 000000000000000000000001 /* Project object */;
 }
-

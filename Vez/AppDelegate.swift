@@ -2,7 +2,16 @@ import AppKit
 import Carbon.HIToolbox
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    private let searchPanelController = SearchPanelController()
+    private let locationStore = SearchLocationStore()
+    private lazy var filenameIndex = FilenameIndex(locationStore: locationStore)
+    private lazy var searchPanelController = SearchPanelController(
+        filenameIndex: filenameIndex,
+        locationStore: locationStore
+    )
+    private lazy var indexManagerWindowController = IndexManagerWindowController(
+        locationStore: locationStore,
+        filenameIndex: filenameIndex
+    )
     private let settingsWindowController = SettingsWindowController()
 
     private var statusItem: NSStatusItem?
@@ -10,23 +19,40 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
+        searchPanelController.onOpenIndexManager = { [weak self] in
+            self?.indexManagerWindowController.show(returnToSearchWhenClosed: true)
+        }
+        indexManagerWindowController.onReturnToSearch = { [weak self] in
+            self?.searchPanelController.show()
+        }
         configureStatusItem()
         registerInitialShortcut()
     }
 
     private func configureStatusItem() {
-        let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        item.button?.image = NSImage(
+        let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        let image = NSImage(
             systemSymbolName: "magnifyingglass",
             accessibilityDescription: "Vez"
         )
-        item.button?.toolTip = "Vez"
+        image?.isTemplate = true
+
+        item.button?.image = image
+        item.button?.imagePosition = .imageLeading
+        item.button?.title = " Vez"
+        item.button?.toolTip = "Open the Vez menu"
+        item.button?.setAccessibilityLabel("Vez")
 
         let menu = NSMenu()
         menu.addItem(
             withTitle: "Open Vez",
             action: #selector(openVez),
             keyEquivalent: ""
+        )
+        menu.addItem(
+            withTitle: "Index Manager…",
+            action: #selector(openIndexManager),
+            keyEquivalent: "i"
         )
         menu.addItem(
             withTitle: "Settings…",
@@ -78,8 +104,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         settingsWindowController.show()
     }
 
+    @objc private func openIndexManager() {
+        indexManagerWindowController.show()
+    }
+
     @objc private func quit() {
         NSApp.terminate(nil)
     }
 }
-

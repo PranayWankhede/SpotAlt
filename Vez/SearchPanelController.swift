@@ -1,17 +1,34 @@
 import AppKit
 
 final class SearchPanelController: NSObject, NSWindowDelegate {
-    private static let panelSize = NSSize(width: 680, height: 68)
+    private static let panelWidth: CGFloat = 680
 
-    private let searchViewController = SearchViewController()
+    var onOpenIndexManager: (() -> Void)?
+
+    private let searchViewController: SearchViewController
     private lazy var panel: SearchPanel = makePanel()
     private var previousApplication: NSRunningApplication?
     private var isDismissing = false
+    private var panelHeight: CGFloat = 68
+    private var hasCreatedPanel = false
 
-    override init() {
+    init(filenameIndex: FilenameIndex, locationStore: SearchLocationStore) {
+        searchViewController = SearchViewController(
+            filenameIndex: filenameIndex,
+            locationStore: locationStore
+        )
         super.init()
         searchViewController.onDismiss = { [weak self] in
             self?.hide(restoringPreviousApplication: true)
+        }
+        searchViewController.onOpenFile = { [weak self] url in
+            self?.open(url)
+        }
+        searchViewController.onOpenIndexManager = { [weak self] in
+            self?.openIndexManager()
+        }
+        searchViewController.onPreferredHeightChange = { [weak self] height in
+            self?.resizePanel(to: height)
         }
     }
 
@@ -72,16 +89,42 @@ final class SearchPanelController: NSObject, NSWindowDelegate {
         guard let screen = PanelPositioning.activeScreen() else { return }
         panel.setFrame(
             PanelPositioning.spotlightFrame(
-                size: Self.panelSize,
+                size: NSSize(width: Self.panelWidth, height: panelHeight),
                 in: screen.visibleFrame
             ),
             display: false
         )
     }
 
+    private func resizePanel(to height: CGFloat) {
+        panelHeight = height
+        guard hasCreatedPanel else { return }
+        guard panel.isVisible else { return }
+        positionPanelOnActiveScreen()
+    }
+
+    private func open(_ url: URL) {
+        hide(restoringPreviousApplication: false)
+        NSWorkspace.shared.open(url)
+    }
+
+    private func openIndexManager() {
+        hideForIndexManager()
+        onOpenIndexManager?()
+    }
+
+    private func hideForIndexManager() {
+        guard panel.isVisible, !isDismissing else { return }
+        isDismissing = true
+        panel.orderOut(nil)
+        searchViewController.reset()
+        isDismissing = false
+    }
+
     private func makePanel() -> SearchPanel {
+        let panelSize = NSSize(width: Self.panelWidth, height: panelHeight)
         let panel = SearchPanel(
-            contentRect: NSRect(origin: .zero, size: Self.panelSize),
+            contentRect: NSRect(origin: .zero, size: panelSize),
             styleMask: [.borderless, .fullSizeContentView],
             backing: .buffered,
             defer: true
@@ -102,12 +145,28 @@ final class SearchPanelController: NSObject, NSWindowDelegate {
             .ignoresCycle
         ]
         panel.animationBehavior = .utilityWindow
+        panel.onOpenIndexManager = { [weak self] in
+            self?.openIndexManager()
+        }
+        hasCreatedPanel = true
 
         return panel
     }
 }
 
 private final class SearchPanel: NSPanel {
+    var onOpenIndexManager: (() -> Void)?
+
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
+
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if event.modifierFlags.contains(.command),
+           event.charactersIgnoringModifiers?.lowercased() == "i" {
+            onOpenIndexManager?()
+            return true
+        }
+
+        return super.performKeyEquivalent(with: event)
+    }
 }
