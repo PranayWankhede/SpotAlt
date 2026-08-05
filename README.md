@@ -6,16 +6,23 @@ background agent and opens a focused file-search panel from anywhere on the Mac.
 
 ## Current development target
 
-The first milestone provides:
+The current milestone provides:
 
 - A native macOS 14+ agent application for Apple silicon
 - No permanent Dock icon or conventional main window
 - A centered search panel invoked with `Option-Space`
 - Immediate keyboard focus and Escape-to-dismiss behavior
 - A minimal menu-bar menu with Open Vez, Settings, and Quit
+- An index manager for enrolling one or more folders through the native macOS
+  folder picker
+- Persisted, read-only folder access using security-scoped bookmarks
+- Background recursive filename and path indexing with common build noise
+  excluded
+- Fuzzy filename results with arrow-key navigation and Return-to-open behavior
 
-Indexing and search results will be added after the launcher interaction is
-validated.
+Vez currently rechecks enrolled folders when it launches or when search
+locations change. Live filesystem watching and file-content search are planned
+for later milestones.
 
 ## Build locally
 
