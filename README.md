@@ -18,6 +18,8 @@ The current milestone provides:
 - Persisted, read-only folder access using security-scoped bookmarks
 - Background recursive filename and path indexing with common build noise
   excluded
+- A central SQLite index stored under Vez's Application Support directory;
+  enrolled folders remain read-only and contain no Vez-generated files
 - Fuzzy filename results with arrow-key navigation and Return-to-open behavior
 
 Vez currently rechecks enrolled folders when it launches or when search
