@@ -52,7 +52,7 @@ final class IndexManagerWindowController: NSWindowController, NSWindowDelegate {
         }
     }
 
-    func show(returnToSearchWhenClosed: Bool = false) {
+    func show(returnToSearchWhenClosed: Bool = true) {
         guard let window else { return }
         returnsToSearchWhenClosed = returnToSearchWhenClosed
         window.center()
@@ -64,7 +64,10 @@ final class IndexManagerWindowController: NSWindowController, NSWindowDelegate {
     func windowWillClose(_ notification: Notification) {
         guard returnsToSearchWhenClosed else { return }
         returnsToSearchWhenClosed = false
-        onReturnToSearch?()
+        let returnToSearch = onReturnToSearch
+        DispatchQueue.main.async {
+            returnToSearch?()
+        }
     }
 
     private func makeWindow() -> NSWindow {
