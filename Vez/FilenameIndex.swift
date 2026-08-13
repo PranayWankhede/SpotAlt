@@ -32,20 +32,33 @@ final class FilenameIndex {
         label: "com.vez.filename-index",
         qos: .utility
     )
-    private let persistedIndexURL: URL?
+    private let indexStore: SQLiteIndexStore?
+    private let legacyJSONURL: URL?
 
-    private var records: [IndexedFile] = []
+    private var transientRecords: [IndexedFile] = []
+    private var indexedFileCountValue = 0
     private var observers: [UUID: Observer] = [:]
     private var locationsObserver: NSObjectProtocol?
     private var rebuildGeneration = 0
     private var scannedFileCount = 0
     private(set) var isIndexing = false
 
-    init(locationStore: SearchLocationStore) {
+    init(
+        locationStore: SearchLocationStore,
+        databaseURL: URL? = nil,
+        legacyJSONURL: URL? = nil
+    ) {
         self.locationStore = locationStore
-        persistedIndexURL = Self.makePersistedIndexURL()
-        records = Self.loadPersistedIndex(from: persistedIndexURL)
-        records = Self.records(records, containedIn: locationStore.locations)
+        let applicationSupportDirectory = Self.makeApplicationSupportDirectory()
+        let resolvedDatabaseURL = databaseURL
+            ?? applicationSupportDirectory?.appendingPathComponent("index.sqlite")
+        self.legacyJSONURL = legacyJSONURL
+            ?? applicationSupportDirectory?.appendingPathComponent("filename-index.json")
+        indexStore = resolvedDatabaseURL.flatMap { try? SQLiteIndexStore(databaseURL: $0) }
+
+        migrateLegacyJSONIfNeeded()
+        try? indexStore?.synchronizeRoots(locationStore.locations)
+        indexedFileCountValue = (try? indexStore?.fileCount()) ?? 0
 
         locationsObserver = NotificationCenter.default.addObserver(
             forName: .vezSearchLocationsDidChange,
@@ -65,7 +78,7 @@ final class FilenameIndex {
     }
 
     var indexedFileCount: Int {
-        records.count
+        indexedFileCountValue
     }
 
     @discardableResult
@@ -87,13 +100,17 @@ final class FilenameIndex {
         scannedFileCount = 0
 
         guard !locations.isEmpty else {
-            records = []
+            transientRecords = []
+            try? indexStore?.synchronizeRoots([])
+            indexedFileCountValue = 0
             isIndexing = false
-            persist([])
             notifyObservers()
             return
         }
 
+        try? indexStore?.synchronizeRoots(locations)
+        indexedFileCountValue = (try? indexStore?.fileCount()) ?? 0
+        transientRecords = []
         isIndexing = true
         notifyObservers()
 
@@ -103,18 +120,33 @@ final class FilenameIndex {
             let scannedRecords = Self.scan(locations: locations) { partialRecords in
                 DispatchQueue.main.async { [weak self] in
                     guard let self, generation == self.rebuildGeneration else { return }
-                    self.records = partialRecords
+                    self.transientRecords = partialRecords
                     self.scannedFileCount = partialRecords.count
                     self.notifyObservers()
                 }
             }
 
+            let shouldPersist = DispatchQueue.main.sync {
+                generation == self.rebuildGeneration
+            }
+            guard shouldPersist else { return }
+
+            var persistedCount: Int?
+            if let indexStore = self.indexStore {
+                do {
+                    try indexStore.replaceIndex(with: scannedRecords, roots: locations)
+                    persistedCount = try indexStore.fileCount()
+                } catch {
+                    persistedCount = nil
+                }
+            }
+
             DispatchQueue.main.async { [weak self] in
                 guard let self, generation == self.rebuildGeneration else { return }
-                self.records = scannedRecords
                 self.scannedFileCount = scannedRecords.count
+                self.indexedFileCountValue = persistedCount ?? scannedRecords.count
+                self.transientRecords = persistedCount == nil ? scannedRecords : []
                 self.isIndexing = false
-                self.persist(scannedRecords)
                 self.notifyObservers()
             }
         }
@@ -124,7 +156,10 @@ final class FilenameIndex {
         let normalizedQuery = Self.normalize(query)
         guard !normalizedQuery.isEmpty else { return [] }
 
-        return records.compactMap { record -> (IndexedFile, Int)? in
+        let persistedCandidates = (try? indexStore?.searchCandidates(for: normalizedQuery)) ?? []
+        let candidates = Self.deduplicated(persistedCandidates + transientRecords)
+
+        return candidates.compactMap { record -> (IndexedFile, Int)? in
             guard let score = Self.matchScore(query: normalizedQuery, file: record) else {
                 return nil
             }
@@ -228,7 +263,7 @@ final class FilenameIndex {
 
     private var snapshot: FilenameIndexSnapshot {
         FilenameIndexSnapshot(
-            indexedFileCount: records.count,
+            indexedFileCount: indexedFileCountValue,
             scannedFileCount: scannedFileCount,
             isIndexing: isIndexing
         )
@@ -241,15 +276,7 @@ final class FilenameIndex {
         }
     }
 
-    private func persist(_ records: [IndexedFile]) {
-        guard let persistedIndexURL else { return }
-        workerQueue.async {
-            guard let data = try? JSONEncoder().encode(records) else { return }
-            try? data.write(to: persistedIndexURL, options: .atomic)
-        }
-    }
-
-    private static func makePersistedIndexURL() -> URL? {
+    private static func makeApplicationSupportDirectory() -> URL? {
         guard let applicationSupport = try? FileManager.default.url(
             for: .applicationSupportDirectory,
             in: .userDomainMask,
@@ -262,16 +289,24 @@ final class FilenameIndex {
             at: directory,
             withIntermediateDirectories: true
         )
-        return directory.appendingPathComponent("filename-index.json")
+        return directory
     }
 
-    private static func loadPersistedIndex(from url: URL?) -> [IndexedFile] {
-        guard let url,
-              let data = try? Data(contentsOf: url),
+    private func migrateLegacyJSONIfNeeded() {
+        guard let indexStore,
+              (try? indexStore.fileCount()) == 0,
+              let legacyJSONURL,
+              let data = try? Data(contentsOf: legacyJSONURL),
               let records = try? JSONDecoder().decode([IndexedFile].self, from: data)
-        else { return [] }
+        else { return }
 
-        return records
+        let activeRecords = Self.records(records, containedIn: locationStore.locations)
+        guard (try? indexStore.replaceIndex(
+            with: activeRecords,
+            roots: locationStore.locations
+        )) != nil else { return }
+
+        try? FileManager.default.removeItem(at: legacyJSONURL)
     }
 
     private static func records(
@@ -284,8 +319,13 @@ final class FilenameIndex {
         }
     }
 
+    private static func deduplicated(_ records: [IndexedFile]) -> [IndexedFile] {
+        var paths: Set<String> = []
+        return records.filter { paths.insert($0.path).inserted }
+    }
+
     private static func normalize(_ value: String) -> String {
-        value.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
+        SearchTextNormalizer.normalize(value)
     }
 
     private static func isSubsequence(_ query: String, of candidate: String) -> Bool {
