@@ -1,6 +1,8 @@
 import AppKit
 
 final class SettingsWindowController: NSWindowController, NSWindowDelegate {
+    var onReturnToSearch: (() -> Void)?
+
     convenience init() {
         let contentViewController = NSViewController()
         let contentView = NSView()
@@ -42,5 +44,11 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
         showWindow(nil)
         window.makeKeyAndOrderFront(nil)
     }
-}
 
+    func windowWillClose(_ notification: Notification) {
+        let returnToSearch = onReturnToSearch
+        DispatchQueue.main.async {
+            returnToSearch?()
+        }
+    }
+}

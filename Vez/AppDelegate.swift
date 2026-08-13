@@ -20,9 +20,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
         searchPanelController.onOpenIndexManager = { [weak self] in
-            self?.indexManagerWindowController.show(returnToSearchWhenClosed: true)
+            self?.indexManagerWindowController.show()
         }
         indexManagerWindowController.onReturnToSearch = { [weak self] in
+            self?.searchPanelController.show()
+        }
+        settingsWindowController.onReturnToSearch = { [weak self] in
             self?.searchPanelController.show()
         }
         configureStatusItem()
