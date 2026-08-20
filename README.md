@@ -28,6 +28,60 @@ SpotAlt performs an initial consistency scan when it launches or when search
 locations change, then keeps the index current from filesystem events. File-content
 search is planned for a later milestone.
 
+## Install from source
+
+SpotAlt currently targets technical users and does not publish a signed binary.
+Install it locally from source instead.
+
+Requirements:
+
+- macOS 14 or later
+- Apple silicon Mac
+- Git
+- The full version of Xcode 15 or later, opened once to complete its setup
+
+Clone the repository and run the installer:
+
+```sh
+git clone https://github.com/PranayWankhede/SpotAlt.git
+cd SpotAlt
+./scripts/install.sh
+```
+
+The script builds SpotAlt in Release mode, verifies the app bundle, installs it
+at `~/Applications/SpotAlt.app`, and launches it. It can also safely replace an
+existing installation without removing the SQLite index or enrolled-folder
+permissions.
+
+Open **Index Manager** from the menu-bar item and enroll the folders you want to
+search. After indexing begins, press `Option-Space` from any application to open
+SpotAlt.
+
+### Update
+
+Pull the newest source and run the same installer again:
+
+```sh
+git pull --ff-only
+./scripts/install.sh
+```
+
+### Uninstall
+
+Remove the application while preserving its index and settings:
+
+```sh
+./scripts/uninstall.sh
+```
+
+To also remove the index, settings, and enrolled-folder permissions:
+
+```sh
+./scripts/uninstall.sh --purge-data
+```
+
+The uninstall script moves removed items to the Trash so they remain recoverable.
+
 ## Build locally
 
 Requirements:
