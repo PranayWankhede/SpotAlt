@@ -20,11 +20,13 @@ The current milestone provides:
   excluded
 - A central SQLite index stored under Vez's Application Support directory;
   enrolled folders remain read-only and contain no Vez-generated files
+- Recursive FSEvents monitoring that incrementally adds, updates, moves, and
+  removes SQLite records as enrolled folders change
 - Fuzzy filename results with arrow-key navigation and Return-to-open behavior
 
-Vez currently rechecks enrolled folders when it launches or when search
-locations change. Live filesystem watching and file-content search are planned
-for later milestones.
+Vez performs an initial consistency scan when it launches or when search
+locations change, then keeps the index current from filesystem events. File-content
+search is planned for a later milestone.
 
 ## Build locally
 

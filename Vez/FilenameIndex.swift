@@ -34,6 +34,8 @@ final class FilenameIndex {
     )
     private let indexStore: SQLiteIndexStore?
     private let legacyJSONURL: URL?
+    private let folderWatcher: FolderWatching
+    private let excludedPaths: Set<String>
 
     private var transientRecords: [IndexedFile] = []
     private var indexedFileCountValue = 0
@@ -41,20 +43,35 @@ final class FilenameIndex {
     private var locationsObserver: NSObjectProtocol?
     private var rebuildGeneration = 0
     private var scannedFileCount = 0
+    private var rebuildInProgress = false
+    private var pendingIncrementalUpdateCount = 0
     private(set) var isIndexing = false
 
     init(
         locationStore: SearchLocationStore,
         databaseURL: URL? = nil,
-        legacyJSONURL: URL? = nil
+        legacyJSONURL: URL? = nil,
+        folderWatcher: FolderWatching = FSEventsFolderWatcher()
     ) {
         self.locationStore = locationStore
+        self.folderWatcher = folderWatcher
         let applicationSupportDirectory = Self.makeApplicationSupportDirectory()
         let resolvedDatabaseURL = databaseURL
             ?? applicationSupportDirectory?.appendingPathComponent("index.sqlite")
-        self.legacyJSONURL = legacyJSONURL
+        let resolvedLegacyJSONURL = legacyJSONURL
             ?? applicationSupportDirectory?.appendingPathComponent("filename-index.json")
+        self.legacyJSONURL = resolvedLegacyJSONURL
+        excludedPaths = Set(
+            [resolvedDatabaseURL, resolvedLegacyJSONURL]
+                .compactMap { $0?.deletingLastPathComponent().standardizedFileURL.path }
+        )
         indexStore = resolvedDatabaseURL.flatMap { try? SQLiteIndexStore(databaseURL: $0) }
+
+        folderWatcher.onEvents = { [weak self] events in
+            DispatchQueue.main.async {
+                self?.handleFileSystemEvents(events)
+            }
+        }
 
         migrateLegacyJSONIfNeeded()
         try? indexStore?.synchronizeRoots(locationStore.locations)
@@ -72,6 +89,7 @@ final class FilenameIndex {
     }
 
     deinit {
+        folderWatcher.stop()
         if let locationsObserver {
             NotificationCenter.default.removeObserver(locationsObserver)
         }
@@ -98,12 +116,15 @@ final class FilenameIndex {
         let generation = rebuildGeneration
         let locations = locationStore.locations
         scannedFileCount = 0
+        pendingIncrementalUpdateCount = 0
+        folderWatcher.start(watching: locations)
 
         guard !locations.isEmpty else {
             transientRecords = []
             try? indexStore?.synchronizeRoots([])
             indexedFileCountValue = 0
-            isIndexing = false
+            rebuildInProgress = false
+            updateIndexingState()
             notifyObservers()
             return
         }
@@ -111,13 +132,17 @@ final class FilenameIndex {
         try? indexStore?.synchronizeRoots(locations)
         indexedFileCountValue = (try? indexStore?.fileCount()) ?? 0
         transientRecords = []
-        isIndexing = true
+        rebuildInProgress = true
+        updateIndexingState()
         notifyObservers()
 
         workerQueue.async { [weak self] in
             guard let self else { return }
 
-            let scannedRecords = Self.scan(locations: locations) { partialRecords in
+            let scannedRecords = Self.scan(
+                locations: locations,
+                excludingPaths: self.excludedPaths
+            ) { partialRecords in
                 DispatchQueue.main.async { [weak self] in
                     guard let self, generation == self.rebuildGeneration else { return }
                     self.transientRecords = partialRecords
@@ -146,7 +171,8 @@ final class FilenameIndex {
                 self.scannedFileCount = scannedRecords.count
                 self.indexedFileCountValue = persistedCount ?? scannedRecords.count
                 self.transientRecords = persistedCount == nil ? scannedRecords : []
-                self.isIndexing = false
+                self.rebuildInProgress = false
+                self.updateIndexingState()
                 self.notifyObservers()
             }
         }
@@ -184,17 +210,23 @@ final class FilenameIndex {
 
     static func scan(
         locations: [URL],
+        excludingPaths: Set<String> = [],
         progress: (([IndexedFile]) -> Void)? = nil
     ) -> [IndexedFile] {
         let resourceKeys: [URLResourceKey] = [
             .isDirectoryKey,
             .isRegularFileKey,
+            .isSymbolicLinkKey,
             .contentModificationDateKey
         ]
         var files: [IndexedFile] = []
         var indexedPaths: Set<String> = []
 
-        for location in locations {
+        for requestedLocation in locations {
+            let location = canonicalURL(requestedLocation)
+            guard !isExcluded(location.path, excludedPaths: excludingPaths) else {
+                continue
+            }
             guard let enumerator = FileManager.default.enumerator(
                 at: location,
                 includingPropertiesForKeys: resourceKeys,
@@ -203,21 +235,38 @@ final class FilenameIndex {
             ) else { continue }
 
             for case let fileURL as URL in enumerator {
-                let values = try? fileURL.resourceValues(forKeys: Set(resourceKeys))
+                let sourceValues = try? fileURL.resourceValues(forKeys: Set(resourceKeys))
+                if sourceValues?.isSymbolicLink == true {
+                    if sourceValues?.isDirectory == true {
+                        enumerator.skipDescendants()
+                    }
+                    continue
+                }
+                let canonicalFileURL = canonicalURL(fileURL)
+                let values = try? canonicalFileURL.resourceValues(forKeys: Set(resourceKeys))
+
+                if isExcluded(canonicalFileURL.path, excludedPaths: excludingPaths) {
+                    if values?.isDirectory == true {
+                        enumerator.skipDescendants()
+                    }
+                    continue
+                }
 
                 if values?.isDirectory == true {
-                    if ignoredDirectoryNames.contains(fileURL.lastPathComponent) {
+                    if values?.isSymbolicLink == true
+                        || ignoredDirectoryNames.contains(canonicalFileURL.lastPathComponent) {
                         enumerator.skipDescendants()
                     }
                     continue
                 }
 
                 guard values?.isRegularFile == true else { continue }
-                guard indexedPaths.insert(fileURL.path).inserted else { continue }
+                guard values?.isSymbolicLink != true else { continue }
+                guard indexedPaths.insert(canonicalFileURL.path).inserted else { continue }
                 files.append(
                     IndexedFile(
-                        name: fileURL.lastPathComponent,
-                        path: fileURL.path,
+                        name: canonicalFileURL.lastPathComponent,
+                        path: canonicalFileURL.path,
                         modifiedAt: values?.contentModificationDate
                     )
                 )
@@ -230,6 +279,245 @@ final class FilenameIndex {
 
         progress?(files)
         return files
+    }
+
+    private func handleFileSystemEvents(_ events: [FileSystemEvent]) {
+        guard !events.isEmpty, let indexStore else { return }
+
+        let generation = rebuildGeneration
+        let locations = locationStore.locations
+        guard !locations.isEmpty else { return }
+
+        pendingIncrementalUpdateCount += 1
+        updateIndexingState()
+        notifyObservers()
+
+        workerQueue.async { [weak self] in
+            guard let self else { return }
+
+            let updatedCount = try? Self.applyFileSystemEvents(
+                events,
+                roots: locations,
+                excludingPaths: self.excludedPaths,
+                to: indexStore
+            )
+
+            DispatchQueue.main.async { [weak self] in
+                guard let self, generation == self.rebuildGeneration else { return }
+                self.pendingIncrementalUpdateCount = max(
+                    0,
+                    self.pendingIncrementalUpdateCount - 1
+                )
+                if let updatedCount {
+                    self.indexedFileCountValue = updatedCount
+                }
+                self.updateIndexingState()
+                self.notifyObservers()
+            }
+        }
+    }
+
+    static func applyFileSystemEvents(
+        _ events: [FileSystemEvent],
+        roots: [URL],
+        excludingPaths: Set<String>,
+        to indexStore: SQLiteIndexStore
+    ) throws -> Int {
+        let standardizedRoots = roots
+            .map(canonicalURL)
+            .sorted { $0.path.count > $1.path.count }
+        var directoryPaths: Set<String> = []
+        var filePaths: Set<String> = []
+
+        for event in events {
+            let sourceURL = URL(fileURLWithPath: event.path).standardizedFileURL
+            let path = canonicalURLPreservingLastComponent(sourceURL).path
+            guard !isExcluded(path, excludedPaths: excludingPaths),
+                  let root = root(containing: path, roots: standardizedRoots)
+            else { continue }
+
+            if event.requiresFullRescan {
+                directoryPaths.insert(root.path)
+                continue
+            }
+
+            if (try? sourceURL.resourceValues(
+                forKeys: [.isSymbolicLinkKey]
+            ).isSymbolicLink) == true {
+                filePaths.insert(path)
+                continue
+            }
+
+            var isDirectory = ObjCBool(event.isDirectory)
+            let exists = FileManager.default.fileExists(
+                atPath: path,
+                isDirectory: &isDirectory
+            )
+            if event.isDirectory || (exists && isDirectory.boolValue) {
+                directoryPaths.insert(path)
+            } else {
+                filePaths.insert(path)
+            }
+        }
+
+        let compactDirectoryPaths = compactSubtrees(directoryPaths)
+        filePaths = filePaths.filter { path in
+            !compactDirectoryPaths.contains(where: {
+                contains(path: path, in: $0)
+            })
+        }
+
+        var upsertsByPath: [String: IndexedFile] = [:]
+        for path in compactDirectoryPaths {
+            guard let root = root(containing: path, roots: standardizedRoots) else {
+                continue
+            }
+            let directoryURL = URL(fileURLWithPath: path, isDirectory: true)
+            guard isIndexableDirectory(directoryURL, within: root) else { continue }
+
+            for file in scan(
+                locations: [directoryURL],
+                excludingPaths: excludingPaths
+            ) {
+                upsertsByPath[file.path] = file
+            }
+        }
+
+        for path in filePaths {
+            guard let root = root(containing: path, roots: standardizedRoots),
+                  let file = indexedFile(at: URL(fileURLWithPath: path), within: root)
+            else { continue }
+            upsertsByPath[file.path] = file
+        }
+
+        return try indexStore.applyChanges(
+            upserting: Array(upsertsByPath.values),
+            deletingPaths: filePaths,
+            deletingSubtrees: Set(compactDirectoryPaths)
+        )
+    }
+
+    private func updateIndexingState() {
+        isIndexing = rebuildInProgress || pendingIncrementalUpdateCount > 0
+    }
+
+    private static func root(containing path: String, roots: [URL]) -> URL? {
+        roots.first { contains(path: path, in: $0.path) }
+    }
+
+    private static func compactSubtrees(_ paths: Set<String>) -> [String] {
+        let sortedPaths = paths.sorted {
+            if $0.count != $1.count {
+                return $0.count < $1.count
+            }
+            return $0 < $1
+        }
+        var compactPaths: [String] = []
+
+        for path in sortedPaths where !compactPaths.contains(where: {
+            contains(path: path, in: $0)
+        }) {
+            compactPaths.append(path)
+        }
+
+        return compactPaths
+    }
+
+    private static func indexedFile(at url: URL, within root: URL) -> IndexedFile? {
+        let sourceURL = url.standardizedFileURL
+        guard (try? sourceURL.resourceValues(
+            forKeys: [.isSymbolicLinkKey]
+        ).isSymbolicLink) != true else { return nil }
+        let standardizedURL = canonicalURL(url)
+        guard contains(path: standardizedURL.path, in: root.path),
+              !standardizedURL.lastPathComponent.hasPrefix("."),
+              isIndexableDirectory(
+                  standardizedURL.deletingLastPathComponent(),
+                  within: root
+              )
+        else { return nil }
+
+        let keys: Set<URLResourceKey> = [
+            .isRegularFileKey,
+            .isHiddenKey,
+            .isSymbolicLinkKey,
+            .contentModificationDateKey
+        ]
+        guard let values = try? standardizedURL.resourceValues(forKeys: keys),
+              values.isRegularFile == true,
+              values.isHidden != true,
+              values.isSymbolicLink != true
+        else { return nil }
+
+        return IndexedFile(
+            name: standardizedURL.lastPathComponent,
+            path: standardizedURL.path,
+            modifiedAt: values.contentModificationDate
+        )
+    }
+
+    private static func isIndexableDirectory(_ url: URL, within root: URL) -> Bool {
+        let standardizedRoot = canonicalURL(root)
+        let standardizedURL = canonicalURL(url)
+        let rootComponents = standardizedRoot.pathComponents
+        let candidateComponents = standardizedURL.pathComponents
+
+        guard contains(path: standardizedURL.path, in: standardizedRoot.path),
+              candidateComponents.starts(with: rootComponents)
+        else { return false }
+
+        let relativeComponents = candidateComponents.dropFirst(rootComponents.count)
+        guard !relativeComponents.contains(where: {
+            $0.hasPrefix(".") || ignoredDirectoryNames.contains($0)
+        }) else { return false }
+
+        var directory = standardizedRoot
+        let keys: Set<URLResourceKey> = [
+            .isDirectoryKey,
+            .isHiddenKey,
+            .isPackageKey,
+            .isSymbolicLinkKey
+        ]
+
+        for component in relativeComponents {
+            directory.appendPathComponent(component, isDirectory: true)
+            guard let values = try? directory.resourceValues(forKeys: keys),
+                  values.isDirectory == true,
+                  values.isHidden != true,
+                  values.isPackage != true,
+                  values.isSymbolicLink != true
+            else { return false }
+        }
+
+        var isDirectory = ObjCBool(false)
+        return FileManager.default.fileExists(
+            atPath: standardizedURL.path,
+            isDirectory: &isDirectory
+        ) && isDirectory.boolValue
+    }
+
+    private static func isExcluded(
+        _ path: String,
+        excludedPaths: Set<String>
+    ) -> Bool {
+        excludedPaths.contains { contains(path: path, in: $0) }
+    }
+
+    private static func contains(path: String, in rootPath: String) -> Bool {
+        path == rootPath
+            || (rootPath == "/" ? path.hasPrefix("/") : path.hasPrefix(rootPath + "/"))
+    }
+
+    private static func canonicalURL(_ url: URL) -> URL {
+        url.standardizedFileURL.resolvingSymlinksInPath()
+    }
+
+    private static func canonicalURLPreservingLastComponent(_ url: URL) -> URL {
+        let standardizedURL = url.standardizedFileURL
+        return standardizedURL
+            .deletingLastPathComponent()
+            .resolvingSymlinksInPath()
+            .appendingPathComponent(standardizedURL.lastPathComponent)
     }
 
     static func matchScore(query: String, file: IndexedFile) -> Int? {
@@ -313,7 +601,7 @@ final class FilenameIndex {
         _ records: [IndexedFile],
         containedIn locations: [URL]
     ) -> [IndexedFile] {
-        let rootPaths = locations.map { $0.standardizedFileURL.path + "/" }
+        let rootPaths = locations.map { canonicalURL($0).path + "/" }
         return records.filter { record in
             rootPaths.contains { record.path.hasPrefix($0) }
         }
