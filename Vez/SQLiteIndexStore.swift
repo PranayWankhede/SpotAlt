@@ -61,7 +61,7 @@ final class SQLiteIndexStore {
     func synchronizeRoots(_ roots: [URL]) throws {
         try withWriteLock {
             try transaction {
-                let activePaths = Set(roots.map { $0.standardizedFileURL.path })
+                let activePaths = Set(roots.map { Self.canonicalPath($0) })
                 let existingRoots = try rootRows()
 
                 for root in existingRoots where !activePaths.contains(root.path) {
@@ -95,7 +95,7 @@ final class SQLiteIndexStore {
 
                 var rootIDs: [String: Int64] = [:]
                 let rootPaths = roots
-                    .map { $0.standardizedFileURL.path }
+                    .map { Self.canonicalPath($0) }
                     .sorted { $0.count > $1.count }
 
                 for path in rootPaths {
@@ -143,6 +143,104 @@ final class SQLiteIndexStore {
                     try stepDone(insertFile)
                 }
             }
+        }
+    }
+
+    @discardableResult
+    func applyChanges(
+        upserting files: [IndexedFile],
+        deletingPaths: Set<String>,
+        deletingSubtrees: Set<String>
+    ) throws -> Int {
+        try withWriteLock {
+            try transaction {
+                let deletePath = try prepare(
+                    "DELETE FROM files WHERE full_path = ?;"
+                )
+                defer { sqlite3_finalize(deletePath) }
+
+                for path in deletingPaths.sorted() {
+                    sqlite3_reset(deletePath)
+                    sqlite3_clear_bindings(deletePath)
+                    try bind(path, to: deletePath, at: 1)
+                    try stepDone(deletePath)
+                }
+
+                let deleteSubtree = try prepare(
+                    """
+                    DELETE FROM files
+                    WHERE full_path = ?
+                       OR full_path LIKE ? ESCAPE '\\';
+                    """
+                )
+                defer { sqlite3_finalize(deleteSubtree) }
+
+                for path in deletingSubtrees.sorted() {
+                    sqlite3_reset(deleteSubtree)
+                    sqlite3_clear_bindings(deleteSubtree)
+                    try bind(path, to: deleteSubtree, at: 1)
+                    try bind(
+                        "\(Self.escapeLike(path))/%",
+                        to: deleteSubtree,
+                        at: 2
+                    )
+                    try stepDone(deleteSubtree)
+                }
+
+                let roots = try rootRows()
+                let rootPaths = roots.sorted { lhs, rhs in
+                    lhs.path.count > rhs.path.count
+                }
+                let upsert = try prepare(
+                    """
+                    INSERT INTO files(
+                        root_id,
+                        filename,
+                        normalized_filename,
+                        full_path,
+                        normalized_path,
+                        modified_at
+                    ) VALUES (?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(full_path) DO UPDATE SET
+                        root_id = excluded.root_id,
+                        filename = excluded.filename,
+                        normalized_filename = excluded.normalized_filename,
+                        normalized_path = excluded.normalized_path,
+                        modified_at = excluded.modified_at;
+                    """
+                )
+                defer { sqlite3_finalize(upsert) }
+
+                for file in files {
+                    guard let root = rootPaths.first(where: {
+                        Self.contains(filePath: file.path, rootPath: $0.path)
+                    }) else { continue }
+
+                    sqlite3_reset(upsert)
+                    sqlite3_clear_bindings(upsert)
+                    try bind(root.id, to: upsert, at: 1)
+                    try bind(file.name, to: upsert, at: 2)
+                    try bind(
+                        SearchTextNormalizer.normalize(file.name),
+                        to: upsert,
+                        at: 3
+                    )
+                    try bind(file.path, to: upsert, at: 4)
+                    try bind(
+                        SearchTextNormalizer.normalize(file.parentPath),
+                        to: upsert,
+                        at: 5
+                    )
+                    if let modifiedAt = file.modifiedAt {
+                        try bind(modifiedAt.timeIntervalSince1970, to: upsert, at: 6)
+                    } else {
+                        sqlite3_bind_null(upsert, 6)
+                    }
+                    try stepDone(upsert)
+                }
+            }
+
+            return try fileCountWithoutLock()
         }
     }
 
@@ -213,12 +311,7 @@ final class SQLiteIndexStore {
 
     func fileCount() throws -> Int {
         try withWriteLock {
-            let statement = try prepare("SELECT COUNT(*) FROM files;")
-            defer { sqlite3_finalize(statement) }
-            guard sqlite3_step(statement) == SQLITE_ROW else {
-                throw SQLiteIndexStoreError.execute(lastErrorMessage)
-            }
-            return Int(sqlite3_column_int64(statement, 0))
+            try fileCountWithoutLock()
         }
     }
 
@@ -324,6 +417,15 @@ final class SQLiteIndexStore {
             rows.append((sqlite3_column_int64(statement, 0), String(cString: path)))
         }
         return rows
+    }
+
+    private func fileCountWithoutLock() throws -> Int {
+        let statement = try prepare("SELECT COUNT(*) FROM files;")
+        defer { sqlite3_finalize(statement) }
+        guard sqlite3_step(statement) == SQLITE_ROW else {
+            throw SQLiteIndexStoreError.execute(lastErrorMessage)
+        }
+        return Int(sqlite3_column_int64(statement, 0))
     }
 
     private func readFiles(
@@ -473,6 +575,10 @@ final class SQLiteIndexStore {
 
     private static func contains(filePath: String, rootPath: String) -> Bool {
         filePath == rootPath || filePath.hasPrefix(rootPath + "/")
+    }
+
+    private static func canonicalPath(_ url: URL) -> String {
+        url.standardizedFileURL.resolvingSymlinksInPath().path
     }
 
     private static func escapeLike(_ value: String) -> String {

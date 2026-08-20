@@ -23,6 +23,7 @@
 		30000000000000000000000E /* SQLiteIndexStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 400000000000000000000010 /* SQLiteIndexStore.swift */; };
 		30000000000000000000000F /* libsqlite3.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 400000000000000000000011 /* libsqlite3.tbd */; };
 		300000000000000000000010 /* SQLiteIndexStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 400000000000000000000012 /* SQLiteIndexStoreTests.swift */; };
+		300000000000000000000011 /* FolderWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 400000000000000000000013 /* FolderWatcher.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -56,6 +57,7 @@
 		400000000000000000000010 /* SQLiteIndexStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SQLiteIndexStore.swift; sourceTree = "<group>"; };
 		400000000000000000000011 /* libsqlite3.tbd */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.text-based-dylib-definition; name = libsqlite3.tbd; path = usr/lib/libsqlite3.tbd; sourceTree = SDKROOT; };
 		400000000000000000000012 /* SQLiteIndexStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SQLiteIndexStoreTests.swift; sourceTree = "<group>"; };
+		400000000000000000000013 /* FolderWatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderWatcher.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -110,6 +112,7 @@
 				400000000000000000000007 /* SettingsWindowController.swift */,
 				40000000000000000000000C /* SearchLocationStore.swift */,
 				40000000000000000000000D /* FilenameIndex.swift */,
+				400000000000000000000013 /* FolderWatcher.swift */,
 				400000000000000000000010 /* SQLiteIndexStore.swift */,
 				40000000000000000000000E /* IndexManagerWindowController.swift */,
 				400000000000000000000009 /* Info.plist */,
@@ -235,6 +238,7 @@
 				300000000000000000000007 /* SettingsWindowController.swift in Sources */,
 				30000000000000000000000A /* SearchLocationStore.swift in Sources */,
 				30000000000000000000000B /* FilenameIndex.swift in Sources */,
+				300000000000000000000011 /* FolderWatcher.swift in Sources */,
 				30000000000000000000000E /* SQLiteIndexStore.swift in Sources */,
 				30000000000000000000000C /* IndexManagerWindowController.swift in Sources */,
 			);
