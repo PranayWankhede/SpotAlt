@@ -1,7 +1,7 @@
 import AppKit
 
 @main
-enum VezApplication {
+enum SpotAltApplication {
     static func main() {
         let application = NSApplication.shared
         let delegate = AppDelegate()

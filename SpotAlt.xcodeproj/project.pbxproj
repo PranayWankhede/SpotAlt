@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		300000000000000000000001 /* VezApplication.swift in Sources */ = {isa = PBXBuildFile; fileRef = 400000000000000000000001 /* VezApplication.swift */; };
+		300000000000000000000001 /* SpotAltApplication.swift in Sources */ = {isa = PBXBuildFile; fileRef = 400000000000000000000001 /* SpotAltApplication.swift */; };
 		300000000000000000000002 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 400000000000000000000002 /* AppDelegate.swift */; };
 		300000000000000000000003 /* GlobalHotKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = 400000000000000000000003 /* GlobalHotKey.swift */; };
 		300000000000000000000004 /* PanelPositioning.swift in Sources */ = {isa = PBXBuildFile; fileRef = 400000000000000000000004 /* PanelPositioning.swift */; };
@@ -32,14 +32,14 @@
 			containerPortal = 000000000000000000000001 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = 000000000000000000000002;
-			remoteInfo = Vez;
+			remoteInfo = SpotAlt;
 		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		100000000000000000000001 /* Vez.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Vez.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		100000000000000000000002 /* VezTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = VezTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		400000000000000000000001 /* VezApplication.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VezApplication.swift; sourceTree = "<group>"; };
+		100000000000000000000001 /* SpotAlt.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SpotAlt.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		100000000000000000000002 /* SpotAltTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SpotAltTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		400000000000000000000001 /* SpotAltApplication.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotAltApplication.swift; sourceTree = "<group>"; };
 		400000000000000000000002 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		400000000000000000000003 /* GlobalHotKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlobalHotKey.swift; sourceTree = "<group>"; };
 		400000000000000000000004 /* PanelPositioning.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PanelPositioning.swift; sourceTree = "<group>"; };
@@ -48,7 +48,7 @@
 		400000000000000000000007 /* SettingsWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsWindowController.swift; sourceTree = "<group>"; };
 		400000000000000000000008 /* PanelPositioningTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PanelPositioningTests.swift; sourceTree = "<group>"; };
 		400000000000000000000009 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		40000000000000000000000A /* Vez.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Vez.entitlements; sourceTree = "<group>"; };
+		40000000000000000000000A /* SpotAlt.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = SpotAlt.entitlements; sourceTree = "<group>"; };
 		40000000000000000000000B /* Carbon.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Carbon.framework; path = System/Library/Frameworks/Carbon.framework; sourceTree = SDKROOT; };
 		40000000000000000000000C /* SearchLocationStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchLocationStore.swift; sourceTree = "<group>"; };
 		40000000000000000000000D /* FilenameIndex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilenameIndex.swift; sourceTree = "<group>"; };
@@ -83,8 +83,8 @@
 		200000000000000000000001 = {
 			isa = PBXGroup;
 			children = (
-				200000000000000000000003 /* Vez */,
-				200000000000000000000004 /* VezTests */,
+				200000000000000000000003 /* SpotAlt */,
+				200000000000000000000004 /* SpotAltTests */,
 				40000000000000000000000B /* Carbon.framework */,
 				400000000000000000000011 /* libsqlite3.tbd */,
 				200000000000000000000002 /* Products */,
@@ -94,16 +94,16 @@
 		200000000000000000000002 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				100000000000000000000001 /* Vez.app */,
-				100000000000000000000002 /* VezTests.xctest */,
+				100000000000000000000001 /* SpotAlt.app */,
+				100000000000000000000002 /* SpotAltTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
 		};
-		200000000000000000000003 /* Vez */ = {
+		200000000000000000000003 /* SpotAlt */ = {
 			isa = PBXGroup;
 			children = (
-				400000000000000000000001 /* VezApplication.swift */,
+				400000000000000000000001 /* SpotAltApplication.swift */,
 				400000000000000000000002 /* AppDelegate.swift */,
 				400000000000000000000003 /* GlobalHotKey.swift */,
 				400000000000000000000004 /* PanelPositioning.swift */,
@@ -116,27 +116,27 @@
 				400000000000000000000010 /* SQLiteIndexStore.swift */,
 				40000000000000000000000E /* IndexManagerWindowController.swift */,
 				400000000000000000000009 /* Info.plist */,
-				40000000000000000000000A /* Vez.entitlements */,
+				40000000000000000000000A /* SpotAlt.entitlements */,
 			);
-			path = Vez;
+			path = SpotAlt;
 			sourceTree = "<group>";
 		};
-		200000000000000000000004 /* VezTests */ = {
+		200000000000000000000004 /* SpotAltTests */ = {
 			isa = PBXGroup;
 			children = (
 				400000000000000000000008 /* PanelPositioningTests.swift */,
 				40000000000000000000000F /* FilenameIndexTests.swift */,
 				400000000000000000000012 /* SQLiteIndexStoreTests.swift */,
 			);
-			path = VezTests;
+			path = SpotAltTests;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		000000000000000000000002 /* Vez */ = {
+		000000000000000000000002 /* SpotAlt */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 700000000000000000000002 /* Build configuration list for PBXNativeTarget "Vez" */;
+			buildConfigurationList = 700000000000000000000002 /* Build configuration list for PBXNativeTarget "SpotAlt" */;
 			buildPhases = (
 				500000000000000000000001 /* Sources */,
 				500000000000000000000002 /* Frameworks */,
@@ -146,14 +146,14 @@
 			);
 			dependencies = (
 			);
-			name = Vez;
-			productName = Vez;
-			productReference = 100000000000000000000001 /* Vez.app */;
+			name = SpotAlt;
+			productName = SpotAlt;
+			productReference = 100000000000000000000001 /* SpotAlt.app */;
 			productType = "com.apple.product-type.application";
 		};
-		000000000000000000000003 /* VezTests */ = {
+		000000000000000000000003 /* SpotAltTests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 700000000000000000000003 /* Build configuration list for PBXNativeTarget "VezTests" */;
+			buildConfigurationList = 700000000000000000000003 /* Build configuration list for PBXNativeTarget "SpotAltTests" */;
 			buildPhases = (
 				500000000000000000000011 /* Sources */,
 				500000000000000000000012 /* Frameworks */,
@@ -164,9 +164,9 @@
 			dependencies = (
 				800000000000000000000002 /* PBXTargetDependency */,
 			);
-			name = VezTests;
-			productName = VezTests;
-			productReference = 100000000000000000000002 /* VezTests.xctest */;
+			name = SpotAltTests;
+			productName = SpotAltTests;
+			productReference = 100000000000000000000002 /* SpotAltTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
 /* End PBXNativeTarget section */
@@ -188,7 +188,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 700000000000000000000001 /* Build configuration list for PBXProject "Vez" */;
+			buildConfigurationList = 700000000000000000000001 /* Build configuration list for PBXProject "SpotAlt" */;
 			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -201,8 +201,8 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				000000000000000000000002 /* Vez */,
-				000000000000000000000003 /* VezTests */,
+				000000000000000000000002 /* SpotAlt */,
+				000000000000000000000003 /* SpotAltTests */,
 			);
 		};
 /* End PBXProject section */
@@ -229,7 +229,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				300000000000000000000001 /* VezApplication.swift in Sources */,
+				300000000000000000000001 /* SpotAltApplication.swift in Sources */,
 				300000000000000000000002 /* AppDelegate.swift in Sources */,
 				300000000000000000000003 /* GlobalHotKey.swift in Sources */,
 				300000000000000000000004 /* PanelPositioning.swift in Sources */,
@@ -259,7 +259,7 @@
 /* Begin PBXTargetDependency section */
 		800000000000000000000002 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 000000000000000000000002 /* Vez */;
+			target = 000000000000000000000002 /* SpotAlt */;
 			targetProxy = 800000000000000000000001 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
@@ -311,14 +311,14 @@
 		600000000000000000000011 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = Vez/Vez.entitlements;
+				CODE_SIGN_ENTITLEMENTS = SpotAlt/SpotAlt.entitlements;
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_LANGUAGE = en;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = Vez/Info.plist;
+				INFOPLIST_FILE = SpotAlt/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -333,14 +333,14 @@
 		600000000000000000000012 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = Vez/Vez.entitlements;
+				CODE_SIGN_ENTITLEMENTS = SpotAlt/SpotAlt.entitlements;
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_LANGUAGE = en;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = Vez/Info.plist;
+				INFOPLIST_FILE = SpotAlt/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -361,7 +361,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = com.vez.search.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Vez.app/Contents/MacOS/Vez";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/SpotAlt.app/Contents/MacOS/SpotAlt";
 			};
 			name = Debug;
 		};
@@ -374,14 +374,14 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = com.vez.search.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Vez.app/Contents/MacOS/Vez";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/SpotAlt.app/Contents/MacOS/SpotAlt";
 			};
 			name = Release;
 		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		700000000000000000000001 /* Build configuration list for PBXProject "Vez" */ = {
+		700000000000000000000001 /* Build configuration list for PBXProject "SpotAlt" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				600000000000000000000001 /* Debug */,
@@ -390,7 +390,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		700000000000000000000002 /* Build configuration list for PBXNativeTarget "Vez" */ = {
+		700000000000000000000002 /* Build configuration list for PBXNativeTarget "SpotAlt" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				600000000000000000000011 /* Debug */,
@@ -399,7 +399,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		700000000000000000000003 /* Build configuration list for PBXNativeTarget "VezTests" */ = {
+		700000000000000000000003 /* Build configuration list for PBXNativeTarget "SpotAltTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				600000000000000000000021 /* Debug */,

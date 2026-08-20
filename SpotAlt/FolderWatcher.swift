@@ -18,7 +18,7 @@ final class FSEventsFolderWatcher: FolderWatching {
     var onEvents: (([FileSystemEvent]) -> Void)?
 
     private let queue = DispatchQueue(
-        label: "com.vez.folder-watcher",
+        label: "com.spotalt.folder-watcher",
         qos: .utility
     )
     private var stream: FSEventStreamRef?

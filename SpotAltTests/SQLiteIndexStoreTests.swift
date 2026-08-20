@@ -1,6 +1,6 @@
 import Foundation
 import XCTest
-@testable import Vez
+@testable import SpotAlt
 
 final class SQLiteIndexStoreTests: XCTestCase {
     func testStoresAndSearchesFilenameCandidates() throws {

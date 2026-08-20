@@ -1,12 +1,12 @@
 import Foundation
 import XCTest
-@testable import Vez
+@testable import SpotAlt
 
 final class FilenameIndexTests: XCTestCase {
     func testScanRecursivelyIndexesFilesAndSkipsCommonNoise() throws {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
-        let nested = root.appendingPathComponent("Projects/Vez", isDirectory: true)
+        let nested = root.appendingPathComponent("Projects/SpotAlt", isDirectory: true)
         let ignored = root.appendingPathComponent("node_modules/package", isDirectory: true)
 
         try FileManager.default.createDirectory(
@@ -207,6 +207,34 @@ final class FilenameIndexTests: XCTestCase {
         try Data("live".utf8).write(to: created)
 
         wait(for: [receivedEvent], timeout: 5)
+    }
+
+    func testMigratesLegacyApplicationSupportDirectory() throws {
+        let applicationSupport = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let legacyDirectory = applicationSupport.appendingPathComponent(
+            "Vez",
+            isDirectory: true
+        )
+        let legacyDatabase = legacyDirectory.appendingPathComponent("index.sqlite")
+        try FileManager.default.createDirectory(
+            at: legacyDirectory,
+            withIntermediateDirectories: true
+        )
+        try Data("legacy-index".utf8).write(to: legacyDatabase)
+        defer { try? FileManager.default.removeItem(at: applicationSupport) }
+
+        let migratedDirectory = try XCTUnwrap(
+            FilenameIndex.prepareApplicationSupportDirectory(at: applicationSupport)
+        )
+
+        XCTAssertEqual(migratedDirectory.lastPathComponent, "SpotAlt")
+        XCTAssertTrue(
+            FileManager.default.fileExists(
+                atPath: migratedDirectory.appendingPathComponent("index.sqlite").path
+            )
+        )
+        XCTAssertFalse(FileManager.default.fileExists(atPath: legacyDirectory.path))
     }
 
     private func file(named name: String) -> IndexedFile {
