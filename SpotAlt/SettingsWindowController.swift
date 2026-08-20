@@ -7,7 +7,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
         let contentViewController = NSViewController()
         let contentView = NSView()
 
-        let titleLabel = NSTextField(labelWithString: "Vez Settings")
+        let titleLabel = NSTextField(labelWithString: "SpotAlt Settings")
         titleLabel.font = .systemFont(ofSize: 20, weight: .semibold)
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
 
@@ -28,7 +28,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
         contentViewController.view = contentView
 
         let window = NSWindow(contentViewController: contentViewController)
-        window.title = "Vez Settings"
+        window.title = "SpotAlt Settings"
         window.styleMask = [.titled, .closable]
         window.setContentSize(NSSize(width: 420, height: 180))
         window.isReleasedWhenClosed = false

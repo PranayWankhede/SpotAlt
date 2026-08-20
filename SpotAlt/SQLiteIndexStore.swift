@@ -11,15 +11,15 @@ enum SQLiteIndexStoreError: Error, LocalizedError {
     var errorDescription: String? {
         switch self {
         case .openDatabase(let message):
-            "Could not open the Vez index: \(message)"
+            "Could not open the SpotAlt index: \(message)"
         case .execute(let message):
-            "Could not update the Vez index: \(message)"
+            "Could not update the SpotAlt index: \(message)"
         case .prepare(let message):
-            "Could not prepare a Vez index query: \(message)"
+            "Could not prepare a SpotAlt index query: \(message)"
         case .bind(let message):
-            "Could not bind a Vez index value: \(message)"
+            "Could not bind a SpotAlt index value: \(message)"
         case .corruptDatabase:
-            "The Vez index is corrupt."
+            "The SpotAlt index is corrupt."
         }
     }
 }

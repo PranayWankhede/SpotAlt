@@ -224,7 +224,7 @@ final class SearchViewController: NSViewController {
         if !hasLocations {
             showMessage(
                 title: "No folders are indexed yet",
-                detail: "Add folders before Vez can search your Mac.",
+                detail: "Add folders before SpotAlt can search your Mac.",
                 showsAction: true,
                 preferredHeight: 190
             )
@@ -250,7 +250,7 @@ final class SearchViewController: NSViewController {
 
         if results.isEmpty {
             let detail = indexSnapshot.isIndexing
-                ? "Vez is still indexing. Results will appear as files are discovered."
+                ? "SpotAlt is still indexing. Results will appear as files are discovered."
                 : "Try a different filename or add another search location with ⌘I."
             showMessage(
                 title: "No matching files",

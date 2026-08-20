@@ -1,6 +1,7 @@
-# --- Vez.ai Private Data ---
+# --- SpotAlt Private Data ---
 # These folders will contain your personal file indexes.
 # We ignore them so your private data stays on your machine.
+.spotalt/
 .vez/
 index/
 storage/

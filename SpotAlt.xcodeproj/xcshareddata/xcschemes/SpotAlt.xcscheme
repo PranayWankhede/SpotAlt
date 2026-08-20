@@ -15,9 +15,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "000000000000000000000002"
-               BuildableName = "Vez.app"
-               BlueprintName = "Vez"
-               ReferencedContainer = "container:Vez.xcodeproj">
+               BuildableName = "SpotAlt.app"
+               BlueprintName = "SpotAlt"
+               ReferencedContainer = "container:SpotAlt.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -34,9 +34,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "000000000000000000000003"
-               BuildableName = "VezTests.xctest"
-               BlueprintName = "VezTests"
-               ReferencedContainer = "container:Vez.xcodeproj">
+               BuildableName = "SpotAltTests.xctest"
+               BlueprintName = "SpotAltTests"
+               ReferencedContainer = "container:SpotAlt.xcodeproj">
             </BuildableReference>
          </TestableReference>
       </Testables>
@@ -55,9 +55,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "000000000000000000000002"
-            BuildableName = "Vez.app"
-            BlueprintName = "Vez"
-            ReferencedContainer = "container:Vez.xcodeproj">
+            BuildableName = "SpotAlt.app"
+            BlueprintName = "SpotAlt"
+            ReferencedContainer = "container:SpotAlt.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
@@ -71,9 +71,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "000000000000000000000002"
-            BuildableName = "Vez.app"
-            BlueprintName = "Vez"
-            ReferencedContainer = "container:Vez.xcodeproj">
+            BuildableName = "SpotAlt.app"
+            BlueprintName = "SpotAlt"
+            ReferencedContainer = "container:SpotAlt.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>

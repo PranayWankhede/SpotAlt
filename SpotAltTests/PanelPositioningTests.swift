@@ -1,6 +1,6 @@
 import AppKit
 import XCTest
-@testable import Vez
+@testable import SpotAlt
 
 final class PanelPositioningTests: XCTestCase {
     func testPositionsPanelAboveCenterLikeSpotlight() {

@@ -2,7 +2,7 @@ import Foundation
 
 extension Notification.Name {
     static let vezSearchLocationsDidChange = Notification.Name(
-        "com.vez.searchLocationsDidChange"
+        "com.spotalt.searchLocationsDidChange"
     )
 }
 

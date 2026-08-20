@@ -36,20 +36,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         let image = NSImage(
             systemSymbolName: "magnifyingglass",
-            accessibilityDescription: "Vez"
+            accessibilityDescription: "SpotAlt"
         )
         image?.isTemplate = true
 
         item.button?.image = image
         item.button?.imagePosition = .imageLeading
-        item.button?.title = " Vez"
-        item.button?.toolTip = "Open the Vez menu"
-        item.button?.setAccessibilityLabel("Vez")
+        item.button?.title = " SpotAlt"
+        item.button?.toolTip = "Open the SpotAlt menu"
+        item.button?.setAccessibilityLabel("SpotAlt")
 
         let menu = NSMenu()
         menu.addItem(
-            withTitle: "Open Vez",
-            action: #selector(openVez),
+            withTitle: "Open SpotAlt",
+            action: #selector(openSpotAlt),
             keyEquivalent: ""
         )
         menu.addItem(
@@ -64,7 +64,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
         menu.addItem(.separator())
         menu.addItem(
-            withTitle: "Quit Vez",
+            withTitle: "Quit SpotAlt",
             action: #selector(quit),
             keyEquivalent: "q"
         )
@@ -93,13 +93,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func presentShortcutRegistrationError(_ error: Error) {
         let alert = NSAlert()
         alert.alertStyle = .warning
-        alert.messageText = "Vez could not register Option-Space"
-        alert.informativeText = "Another application may already use this shortcut. You can still open Vez from the menu bar.\n\n\(error.localizedDescription)"
+        alert.messageText = "SpotAlt could not register Option-Space"
+        alert.informativeText = "Another application may already use this shortcut. You can still open SpotAlt from the menu bar.\n\n\(error.localizedDescription)"
         alert.addButton(withTitle: "OK")
         alert.runModal()
     }
 
-    @objc private func openVez() {
+    @objc private func openSpotAlt() {
         searchPanelController.show()
     }
 

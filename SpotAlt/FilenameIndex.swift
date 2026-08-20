@@ -29,7 +29,7 @@ final class FilenameIndex {
 
     private let locationStore: SearchLocationStore
     private let workerQueue = DispatchQueue(
-        label: "com.vez.filename-index",
+        label: "com.spotalt.filename-index",
         qos: .utility
     )
     private let indexStore: SQLiteIndexStore?
@@ -572,12 +572,36 @@ final class FilenameIndex {
             create: true
         ) else { return nil }
 
-        let directory = applicationSupport.appendingPathComponent("Vez", isDirectory: true)
-        try? FileManager.default.createDirectory(
-            at: directory,
-            withIntermediateDirectories: true
+        return prepareApplicationSupportDirectory(at: applicationSupport)
+    }
+
+    static func prepareApplicationSupportDirectory(
+        at applicationSupport: URL,
+        fileManager: FileManager = .default
+    ) -> URL? {
+        let directory = applicationSupport.appendingPathComponent(
+            "SpotAlt",
+            isDirectory: true
         )
-        return directory
+        let legacyDirectory = applicationSupport.appendingPathComponent(
+            "Vez",
+            isDirectory: true
+        )
+
+        if !fileManager.fileExists(atPath: directory.path),
+           fileManager.fileExists(atPath: legacyDirectory.path) {
+            try? fileManager.moveItem(at: legacyDirectory, to: directory)
+        }
+
+        do {
+            try fileManager.createDirectory(
+                at: directory,
+                withIntermediateDirectories: true
+            )
+            return directory
+        } catch {
+            return nil
+        }
     }
 
     private func migrateLegacyJSONIfNeeded() {

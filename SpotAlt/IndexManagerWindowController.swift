@@ -74,12 +74,12 @@ final class IndexManagerWindowController: NSWindowController, NSWindowDelegate {
         let contentViewController = NSViewController()
         let contentView = NSView()
 
-        let titleLabel = NSTextField(labelWithString: "Vez Index")
+        let titleLabel = NSTextField(labelWithString: "SpotAlt Index")
         titleLabel.font = .systemFont(ofSize: 24, weight: .bold)
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
 
         let subtitleLabel = NSTextField(
-            labelWithString: "Choose the folders Vez can search. Files remain on this Mac."
+            labelWithString: "Choose the folders SpotAlt can search. Files remain on this Mac."
         )
         subtitleLabel.font = .systemFont(ofSize: 13)
         subtitleLabel.textColor = .secondaryLabelColor
@@ -131,7 +131,7 @@ final class IndexManagerWindowController: NSWindowController, NSWindowDelegate {
         progressIndicator.translatesAutoresizingMaskIntoConstraints = false
 
         let footerLabel = NSTextField(
-            labelWithString: "Vez indexes filenames and paths recursively. Hidden files and common build folders are skipped."
+            labelWithString: "SpotAlt indexes filenames and paths recursively. Hidden files and common build folders are skipped."
         )
         footerLabel.font = .systemFont(ofSize: 11)
         footerLabel.textColor = .tertiaryLabelColor
@@ -188,7 +188,7 @@ final class IndexManagerWindowController: NSWindowController, NSWindowDelegate {
         contentViewController.view = contentView
 
         let window = NSWindow(contentViewController: contentViewController)
-        window.title = "Vez Index Manager"
+        window.title = "SpotAlt Index Manager"
         window.styleMask = [.titled, .closable, .miniaturizable]
         window.setContentSize(NSSize(width: 720, height: 470))
         window.isReleasedWhenClosed = false
@@ -323,9 +323,9 @@ final class IndexManagerWindowController: NSWindowController, NSWindowDelegate {
         guard let window else { return }
 
         let panel = NSOpenPanel()
-        panel.title = "Choose folders for Vez to index"
+        panel.title = "Choose folders for SpotAlt to index"
         panel.prompt = "Add"
-        panel.message = "Vez will recursively index filenames in the selected folders."
+        panel.message = "SpotAlt will recursively index filenames in the selected folders."
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
         panel.allowsMultipleSelection = true
@@ -347,7 +347,7 @@ final class IndexManagerWindowController: NSWindowController, NSWindowDelegate {
         guard let window else { return }
         let alert = NSAlert()
         alert.alertStyle = .warning
-        alert.messageText = "Vez could not add that folder"
+        alert.messageText = "SpotAlt could not add that folder"
         alert.informativeText = error.localizedDescription
         alert.addButton(withTitle: "OK")
         alert.beginSheetModal(for: window)
