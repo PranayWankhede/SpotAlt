@@ -17,8 +17,9 @@ folder without requiring an application restart or a manual full rescan.
   processing.
 - Reconcile the complete affected root when FSEvents reports dropped events or
   another condition that makes incremental history unreliable.
-- Preserve the existing exclusions for hidden items, packages, symbolic links,
-  and common build directories.
+- Preserve the existing exclusions for hidden items, application packages,
+  symbolic links, and common build directories while treating supported document
+  packages such as Pages and RTFD as individual indexable files.
 - Ignore SpotAlt's own Application Support index directory so SQLite writes cannot
   create an indexing loop when a parent folder is enrolled.
 
@@ -35,8 +36,8 @@ batch are collapsed to the smallest set of top-level affected subtrees.
 
 ## Failure and recovery
 
-- A malformed, unreadable, hidden, packaged, or symbolic item is omitted without
-  stopping the remaining batch.
+- A malformed, unreadable, hidden, unsupported package, or symbolic item is
+  omitted without stopping the remaining batch.
 - If an incremental SQLite mutation fails, the existing index remains usable.
 - FSEvents history-loss flags trigger a consistency scan of the affected root.
 - Adding or removing enrolled roots restarts the watcher and retains the existing

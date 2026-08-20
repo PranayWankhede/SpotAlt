@@ -4,6 +4,19 @@ struct IndexedFile: Codable, Hashable {
     let name: String
     let path: String
     let modifiedAt: Date?
+    let sizeBytes: Int64?
+
+    init(
+        name: String,
+        path: String,
+        modifiedAt: Date?,
+        sizeBytes: Int64? = nil
+    ) {
+        self.name = name
+        self.path = path
+        self.modifiedAt = modifiedAt
+        self.sizeBytes = sizeBytes
+    }
 
     var url: URL {
         URL(fileURLWithPath: path)
@@ -12,6 +25,16 @@ struct IndexedFile: Codable, Hashable {
     var parentPath: String {
         url.deletingLastPathComponent().path
     }
+}
+
+struct SearchResult: Hashable {
+    let file: IndexedFile
+    let excerpt: String?
+
+    var url: URL { file.url }
+    var name: String { file.name }
+    var path: String { file.path }
+    var parentPath: String { file.parentPath }
 }
 
 struct FilenameIndexSnapshot {
@@ -35,6 +58,7 @@ final class FilenameIndex {
     private let indexStore: SQLiteIndexStore?
     private let legacyJSONURL: URL?
     private let folderWatcher: FolderWatching
+    private let contentExtractor: DocumentTextExtractor
     private let excludedPaths: Set<String>
 
     private var transientRecords: [IndexedFile] = []
@@ -51,10 +75,12 @@ final class FilenameIndex {
         locationStore: SearchLocationStore,
         databaseURL: URL? = nil,
         legacyJSONURL: URL? = nil,
-        folderWatcher: FolderWatching = FSEventsFolderWatcher()
+        folderWatcher: FolderWatching = FSEventsFolderWatcher(),
+        contentExtractor: DocumentTextExtractor = DocumentTextExtractor()
     ) {
         self.locationStore = locationStore
         self.folderWatcher = folderWatcher
+        self.contentExtractor = contentExtractor
         let applicationSupportDirectory = Self.makeApplicationSupportDirectory()
         let resolvedDatabaseURL = databaseURL
             ?? applicationSupportDirectory?.appendingPathComponent("index.sqlite")
@@ -161,6 +187,23 @@ final class FilenameIndex {
                 do {
                     try indexStore.replaceIndex(with: scannedRecords, roots: locations)
                     persistedCount = try indexStore.fileCount()
+                    try? Self.indexPendingContent(
+                        in: indexStore,
+                        extractor: self.contentExtractor,
+                        shouldContinue: {
+                            DispatchQueue.main.sync {
+                                generation == self.rebuildGeneration
+                            }
+                        },
+                        progress: {
+                            DispatchQueue.main.async { [weak self] in
+                                guard let self,
+                                      generation == self.rebuildGeneration
+                                else { return }
+                                self.notifyObservers()
+                            }
+                        }
+                    )
                 } catch {
                     persistedCount = nil
                 }
@@ -178,26 +221,48 @@ final class FilenameIndex {
         }
     }
 
-    func search(_ query: String, limit: Int = 10) -> [IndexedFile] {
+    func search(_ query: String, limit: Int = 10) -> [SearchResult] {
         let normalizedQuery = Self.normalize(query)
         guard !normalizedQuery.isEmpty else { return [] }
 
         let persistedCandidates = (try? indexStore?.searchCandidates(for: normalizedQuery)) ?? []
         let candidates = Self.deduplicated(persistedCandidates + transientRecords)
+        let contentHits = (try? indexStore?.searchContent(
+            for: normalizedQuery,
+            limit: max(limit * 10, 100)
+        )) ?? []
+        let contentByPath = Dictionary(
+            contentHits.map { ($0.file.path, $0.excerpt) },
+            uniquingKeysWith: { first, _ in first }
+        )
 
-        return candidates.compactMap { record -> (IndexedFile, Int)? in
+        var rankedResults = candidates.compactMap { record -> (SearchResult, Int)? in
             guard let score = Self.matchScore(query: normalizedQuery, file: record) else {
                 return nil
             }
-            return (record, score)
+            return (
+                SearchResult(file: record, excerpt: contentByPath[record.path]),
+                score
+            )
         }
-        .sorted { lhs, rhs in
+        var seenPaths = Set(rankedResults.map { $0.0.path })
+        for (position, hit) in contentHits.enumerated()
+            where seenPaths.insert(hit.file.path).inserted {
+            rankedResults.append(
+                (
+                    SearchResult(file: hit.file, excerpt: hit.excerpt),
+                    350 - min(position, 100)
+                )
+            )
+        }
+
+        return rankedResults.sorted { lhs, rhs in
             if lhs.1 != rhs.1 {
                 return lhs.1 > rhs.1
             }
 
-            let lhsDate = lhs.0.modifiedAt ?? .distantPast
-            let rhsDate = rhs.0.modifiedAt ?? .distantPast
+            let lhsDate = lhs.0.file.modifiedAt ?? .distantPast
+            let rhsDate = rhs.0.file.modifiedAt ?? .distantPast
             if lhsDate != rhsDate {
                 return lhsDate > rhsDate
             }
@@ -215,9 +280,11 @@ final class FilenameIndex {
     ) -> [IndexedFile] {
         let resourceKeys: [URLResourceKey] = [
             .isDirectoryKey,
+            .isPackageKey,
             .isRegularFileKey,
             .isSymbolicLinkKey,
-            .contentModificationDateKey
+            .contentModificationDateKey,
+            .fileSizeKey
         ]
         var files: [IndexedFile] = []
         var indexedPaths: Set<String> = []
@@ -253,8 +320,26 @@ final class FilenameIndex {
                 }
 
                 if values?.isDirectory == true {
-                    if values?.isSymbolicLink == true
-                        || ignoredDirectoryNames.contains(canonicalFileURL.lastPathComponent) {
+                    if values?.isSymbolicLink == true {
+                        enumerator.skipDescendants()
+                        continue
+                    }
+                    if values?.isPackage == true {
+                        enumerator.skipDescendants()
+                        guard DocumentTextExtractor.canIndexPackage(at: canonicalFileURL),
+                              indexedPaths.insert(canonicalFileURL.path).inserted
+                        else { continue }
+                        files.append(
+                            IndexedFile(
+                                name: canonicalFileURL.lastPathComponent,
+                                path: canonicalFileURL.path,
+                                modifiedAt: values?.contentModificationDate,
+                                sizeBytes: values?.fileSize.map(Int64.init)
+                            )
+                        )
+                        continue
+                    }
+                    if ignoredDirectoryNames.contains(canonicalFileURL.lastPathComponent) {
                         enumerator.skipDescendants()
                     }
                     continue
@@ -267,7 +352,8 @@ final class FilenameIndex {
                     IndexedFile(
                         name: canonicalFileURL.lastPathComponent,
                         path: canonicalFileURL.path,
-                        modifiedAt: values?.contentModificationDate
+                        modifiedAt: values?.contentModificationDate,
+                        sizeBytes: values?.fileSize.map(Int64.init)
                     )
                 )
 
@@ -299,7 +385,13 @@ final class FilenameIndex {
                 events,
                 roots: locations,
                 excludingPaths: self.excludedPaths,
-                to: indexStore
+                to: indexStore,
+                contentExtractor: self.contentExtractor,
+                shouldContinue: {
+                    DispatchQueue.main.sync {
+                        generation == self.rebuildGeneration
+                    }
+                }
             )
 
             DispatchQueue.main.async { [weak self] in
@@ -321,7 +413,9 @@ final class FilenameIndex {
         _ events: [FileSystemEvent],
         roots: [URL],
         excludingPaths: Set<String>,
-        to indexStore: SQLiteIndexStore
+        to indexStore: SQLiteIndexStore,
+        contentExtractor: DocumentTextExtractor = DocumentTextExtractor(),
+        shouldContinue: () -> Bool = { true }
     ) throws -> Int {
         let standardizedRoots = roots
             .map(canonicalURL)
@@ -353,7 +447,12 @@ final class FilenameIndex {
                 atPath: path,
                 isDirectory: &isDirectory
             )
-            if event.isDirectory || (exists && isDirectory.boolValue) {
+            let isIndexablePackage = exists
+                && isDirectory.boolValue
+                && DocumentTextExtractor.canIndexPackage(at: sourceURL)
+            if isIndexablePackage {
+                filePaths.insert(path)
+            } else if event.isDirectory || (exists && isDirectory.boolValue) {
                 directoryPaths.insert(path)
             } else {
                 filePaths.insert(path)
@@ -390,11 +489,40 @@ final class FilenameIndex {
             upsertsByPath[file.path] = file
         }
 
-        return try indexStore.applyChanges(
+        let fileCount = try indexStore.applyChanges(
             upserting: Array(upsertsByPath.values),
             deletingPaths: filePaths,
             deletingSubtrees: Set(compactDirectoryPaths)
         )
+        try indexPendingContent(
+            in: indexStore,
+            extractor: contentExtractor,
+            shouldContinue: shouldContinue
+        )
+        return fileCount
+    }
+
+    private static func indexPendingContent(
+        in indexStore: SQLiteIndexStore,
+        extractor: DocumentTextExtractor,
+        shouldContinue: () -> Bool,
+        progress: (() -> Void)? = nil
+    ) throws {
+        while shouldContinue() {
+            let files = try indexStore.pendingContentFiles(
+                extractionVersion: DocumentTextExtractor.extractionVersion,
+                limit: 64
+            )
+            guard !files.isEmpty else { return }
+
+            let updates = files.map { extractor.extractContent(from: $0) }
+            guard shouldContinue() else { return }
+            try indexStore.applyContentUpdates(
+                updates,
+                extractionVersion: DocumentTextExtractor.extractionVersion
+            )
+            progress?()
+        }
     }
 
     private func updateIndexingState() {
@@ -438,13 +566,19 @@ final class FilenameIndex {
         else { return nil }
 
         let keys: Set<URLResourceKey> = [
+            .isDirectoryKey,
+            .isPackageKey,
             .isRegularFileKey,
             .isHiddenKey,
             .isSymbolicLinkKey,
-            .contentModificationDateKey
+            .contentModificationDateKey,
+            .fileSizeKey
         ]
         guard let values = try? standardizedURL.resourceValues(forKeys: keys),
-              values.isRegularFile == true,
+              values.isRegularFile == true
+                || (values.isDirectory == true
+                    && values.isPackage == true
+                    && DocumentTextExtractor.canIndexPackage(at: standardizedURL)),
               values.isHidden != true,
               values.isSymbolicLink != true
         else { return nil }
@@ -452,7 +586,8 @@ final class FilenameIndex {
         return IndexedFile(
             name: standardizedURL.lastPathComponent,
             path: standardizedURL.path,
-            modifiedAt: values.contentModificationDate
+            modifiedAt: values.contentModificationDate,
+            sizeBytes: values.fileSize.map(Int64.init)
         )
     }
 

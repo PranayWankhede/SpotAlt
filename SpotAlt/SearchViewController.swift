@@ -18,7 +18,7 @@ final class SearchViewController: NSViewController {
     private let primaryActionButton = NSButton()
     private let indexingLabel = NSTextField(labelWithString: "")
 
-    private var results: [IndexedFile] = []
+    private var results: [SearchResult] = []
     private var indexSnapshot = FilenameIndexSnapshot(
         indexedFileCount: 0,
         scannedFileCount: 0,
@@ -101,7 +101,7 @@ final class SearchViewController: NSViewController {
         tableColumn.resizingMask = .autoresizingMask
         resultsTable.addTableColumn(tableColumn)
         resultsTable.headerView = nil
-        resultsTable.rowHeight = 52
+        resultsTable.rowHeight = 62
         resultsTable.intercellSpacing = NSSize(width: 0, height: 2)
         resultsTable.backgroundColor = .clear
         resultsTable.selectionHighlightStyle = .regular
@@ -266,7 +266,7 @@ final class SearchViewController: NSViewController {
         updateResultsFooter(showsIndexingStatus: indexSnapshot.isIndexing)
         indexingLabel.stringValue = indexingStatus
         let statusHeight: CGFloat = indexSnapshot.isIndexing ? 26 : 0
-        let resultListHeight = 12 + min(CGFloat(results.count), 10) * 54
+        let resultListHeight = 12 + min(CGFloat(results.count), 10) * 64
         setPreferredHeight(68 + resultListHeight + statusHeight)
 
         if resultsTable.selectedRow < 0, !results.isEmpty {
@@ -359,6 +359,7 @@ extension SearchViewController: NSTableViewDataSource, NSTableViewDelegate {
 private final class SearchResultCellView: NSTableCellView {
     private let fileIcon = NSImageView()
     private let nameLabel = NSTextField(labelWithString: "")
+    private let excerptLabel = NSTextField(labelWithString: "")
     private let pathLabel = NSTextField(labelWithString: "")
 
     init(identifier: NSUserInterfaceItemIdentifier) {
@@ -372,13 +373,19 @@ private final class SearchResultCellView: NSTableCellView {
         nameLabel.lineBreakMode = .byTruncatingMiddle
         nameLabel.translatesAutoresizingMaskIntoConstraints = false
 
-        pathLabel.font = .systemFont(ofSize: 11)
+        excerptLabel.font = .systemFont(ofSize: 11.5)
+        excerptLabel.textColor = .secondaryLabelColor
+        excerptLabel.lineBreakMode = .byTruncatingTail
+        excerptLabel.translatesAutoresizingMaskIntoConstraints = false
+
+        pathLabel.font = .systemFont(ofSize: 10)
         pathLabel.textColor = .secondaryLabelColor
         pathLabel.lineBreakMode = .byTruncatingMiddle
         pathLabel.translatesAutoresizingMaskIntoConstraints = false
 
         addSubview(fileIcon)
         addSubview(nameLabel)
+        addSubview(excerptLabel)
         addSubview(pathLabel)
         NSLayoutConstraint.activate([
             fileIcon.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
@@ -388,11 +395,15 @@ private final class SearchResultCellView: NSTableCellView {
 
             nameLabel.leadingAnchor.constraint(equalTo: fileIcon.trailingAnchor, constant: 12),
             nameLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
-            nameLabel.topAnchor.constraint(equalTo: topAnchor, constant: 6),
+            nameLabel.topAnchor.constraint(equalTo: topAnchor, constant: 4),
+
+            excerptLabel.leadingAnchor.constraint(equalTo: nameLabel.leadingAnchor),
+            excerptLabel.trailingAnchor.constraint(equalTo: nameLabel.trailingAnchor),
+            excerptLabel.topAnchor.constraint(equalTo: nameLabel.bottomAnchor),
 
             pathLabel.leadingAnchor.constraint(equalTo: nameLabel.leadingAnchor),
             pathLabel.trailingAnchor.constraint(equalTo: nameLabel.trailingAnchor),
-            pathLabel.topAnchor.constraint(equalTo: nameLabel.bottomAnchor, constant: 2)
+            pathLabel.topAnchor.constraint(equalTo: excerptLabel.bottomAnchor)
         ])
     }
 
@@ -401,10 +412,18 @@ private final class SearchResultCellView: NSTableCellView {
         fatalError("init(coder:) has not been implemented")
     }
 
-    func configure(with file: IndexedFile) {
-        nameLabel.stringValue = file.name
-        pathLabel.stringValue = file.parentPath
-        fileIcon.image = NSWorkspace.shared.icon(forFile: file.path)
+    func configure(with result: SearchResult) {
+        nameLabel.stringValue = result.name
+        if let excerpt = result.excerpt {
+            excerptLabel.stringValue = excerpt
+                .replacingOccurrences(of: "‹", with: "")
+                .replacingOccurrences(of: "›", with: "")
+            pathLabel.stringValue = result.parentPath
+        } else {
+            excerptLabel.stringValue = result.parentPath
+            pathLabel.stringValue = ""
+        }
+        fileIcon.image = NSWorkspace.shared.icon(forFile: result.path)
     }
 }
 

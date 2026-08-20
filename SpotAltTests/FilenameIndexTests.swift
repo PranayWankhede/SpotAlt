@@ -153,6 +153,34 @@ final class FilenameIndexTests: XCTestCase {
         XCTAssertTrue(indexedPaths.allSatisfy { $0.hasPrefix(renamed.path + "/") })
     }
 
+    func testFileEventsIncrementallyRefreshSearchableContent() throws {
+        let fixture = try makeIncrementalFixture()
+        defer { fixture.cleanup() }
+
+        let document = fixture.root.appendingPathComponent("Status.md")
+        try Data("Project Juniper is ready for review.".utf8).write(to: document)
+        try applyEvent(for: document, in: fixture)
+
+        XCTAssertEqual(
+            try fixture.store.searchContent(for: "Juniper review").map(\.file.path),
+            [document.path]
+        )
+
+        try Data("Project Sequoia has replaced the earlier plan entirely.".utf8)
+            .write(to: document)
+        try applyEvent(for: document, in: fixture)
+
+        XCTAssertTrue(try fixture.store.searchContent(for: "Juniper review").isEmpty)
+        XCTAssertEqual(
+            try fixture.store.searchContent(for: "Sequoia earlier plan").map(\.file.path),
+            [document.path]
+        )
+
+        try FileManager.default.removeItem(at: document)
+        try applyEvent(for: document, in: fixture)
+        XCTAssertTrue(try fixture.store.searchContent(for: "Sequoia").isEmpty)
+    }
+
     func testDroppedEventsTriggerAFullRootReconciliation() throws {
         let fixture = try makeIncrementalFixture()
         defer { fixture.cleanup() }
