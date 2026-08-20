@@ -1,5 +1,5 @@
 # SpotAlt
-Stop hunting through folders. SpotAlt brings semantic intelligence to your local files.
+Stop hunting through folders. SpotAlt brings fast, private search to your local files.
 
 SpotAlt is an open-source, native macOS Spotlight replacement. It runs as a quiet
 background agent and opens a focused file-search panel from anywhere on the Mac.
@@ -22,11 +22,26 @@ The current milestone provides:
   enrolled folders remain read-only and contain no SpotAlt-generated files
 - Recursive FSEvents monitoring that incrementally adds, updates, moves, and
   removes SQLite records as enrolled folders change
-- Fuzzy filename results with arrow-key navigation and Return-to-open behavior
+- Chunked SQLite FTS5 content search with matching excerpts
+- Local extraction for text and source files, searchable PDFs, Word, RTF,
+  OpenDocument, Pages, Numbers, Keynote, PowerPoint, and Excel documents
+- Hybrid filename/content results with arrow-key navigation and Return-to-open
+  behavior
 
 SpotAlt performs an initial consistency scan when it launches or when search
-locations change, then keeps the index current from filesystem events. File-content
-search is planned for a later milestone.
+locations change, then keeps filenames and extracted content current from
+filesystem events. Unchanged documents retain their existing content index and
+are not parsed again. Semantic/vector search is planned for a later milestone.
+
+### Content indexing limits
+
+- Plain-text and source files: 5 MB per file
+- PDFs and structured documents: 50 MB per file
+- Extracted text: 1,000,000 characters and at most 512 overlapping chunks per file
+- Scanned PDFs require OCR and are not searchable by content yet
+
+All extraction and indexing happens locally. Enrolled folders are read-only, and
+SpotAlt stores its SQLite index in its own Application Support directory.
 
 ## Install from source
 

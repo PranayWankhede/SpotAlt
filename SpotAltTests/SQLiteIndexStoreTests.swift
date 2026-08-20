@@ -98,6 +98,104 @@ final class SQLiteIndexStoreTests: XCTestCase {
         XCTAssertEqual(try store.fileCount(), 0)
     }
 
+    func testStoresAndSearchesChunkedContentWithExcerpt() throws {
+        let fixture = try makeFixture()
+        defer { fixture.cleanup() }
+
+        let root = URL(fileURLWithPath: "/Users/test/Documents", isDirectory: true)
+        let notes = IndexedFile(
+            name: "Notes.md",
+            path: root.appendingPathComponent("Notes.md").path,
+            modifiedAt: Date(timeIntervalSince1970: 100),
+            sizeBytes: 128
+        )
+        try fixture.store.replaceIndex(with: [notes], roots: [root])
+
+        XCTAssertEqual(
+            try fixture.store.pendingContentFiles(extractionVersion: 1).map(\.path),
+            [notes.path]
+        )
+
+        try fixture.store.applyContentUpdates(
+            [
+                FileContentUpdate(
+                    file: notes,
+                    chunks: ["Raft provides distributed consensus for replicated systems."]
+                )
+            ],
+            extractionVersion: 1
+        )
+
+        let hit = try XCTUnwrap(
+            fixture.store.searchContent(for: "distributed consensus").first
+        )
+        XCTAssertEqual(hit.file.path, notes.path)
+        XCTAssertTrue(hit.excerpt.localizedCaseInsensitiveContains("consensus"))
+        XCTAssertTrue(
+            try fixture.store.pendingContentFiles(extractionVersion: 1).isEmpty
+        )
+    }
+
+    func testConsistencyScanPreservesContentForUnchangedFiles() throws {
+        let fixture = try makeFixture()
+        defer { fixture.cleanup() }
+
+        let root = URL(fileURLWithPath: "/Users/test/Documents", isDirectory: true)
+        let notes = IndexedFile(
+            name: "Architecture.md",
+            path: root.appendingPathComponent("Architecture.md").path,
+            modifiedAt: Date(timeIntervalSince1970: 100),
+            sizeBytes: 64
+        )
+        try fixture.store.replaceIndex(with: [notes], roots: [root])
+        try fixture.store.applyContentUpdates(
+            [FileContentUpdate(file: notes, chunks: ["A durable searchable phrase."])],
+            extractionVersion: 1
+        )
+
+        try fixture.store.replaceIndex(with: [notes], roots: [root])
+
+        XCTAssertEqual(
+            try fixture.store.searchContent(for: "durable searchable").map(\.file.path),
+            [notes.path]
+        )
+        XCTAssertTrue(
+            try fixture.store.pendingContentFiles(extractionVersion: 1).isEmpty
+        )
+    }
+
+    func testChangedFingerprintInvalidatesStaleContent() throws {
+        let fixture = try makeFixture()
+        defer { fixture.cleanup() }
+
+        let root = URL(fileURLWithPath: "/Users/test/Documents", isDirectory: true)
+        let original = IndexedFile(
+            name: "Status.md",
+            path: root.appendingPathComponent("Status.md").path,
+            modifiedAt: Date(timeIntervalSince1970: 100),
+            sizeBytes: 32
+        )
+        try fixture.store.replaceIndex(with: [original], roots: [root])
+        try fixture.store.applyContentUpdates(
+            [FileContentUpdate(file: original, chunks: ["This content becomes stale."])],
+            extractionVersion: 1
+        )
+
+        let changed = IndexedFile(
+            name: original.name,
+            path: original.path,
+            modifiedAt: Date(timeIntervalSince1970: 200),
+            sizeBytes: 48
+        )
+        try fixture.store.replaceIndex(with: [changed], roots: [root])
+
+        XCTAssertTrue(try fixture.store.searchContent(for: "becomes stale").isEmpty)
+        XCTAssertEqual(
+            try fixture.store.pendingContentFiles(extractionVersion: 1).map(\.path),
+            [changed.path]
+        )
+    }
+
     private func makeFixture() throws -> (
         store: SQLiteIndexStore,
         cleanup: () -> Void

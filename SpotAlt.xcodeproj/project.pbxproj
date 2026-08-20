@@ -24,6 +24,9 @@
 		30000000000000000000000F /* libsqlite3.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 400000000000000000000011 /* libsqlite3.tbd */; };
 		300000000000000000000010 /* SQLiteIndexStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 400000000000000000000012 /* SQLiteIndexStoreTests.swift */; };
 		300000000000000000000011 /* FolderWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 400000000000000000000013 /* FolderWatcher.swift */; };
+		300000000000000000000012 /* DocumentTextExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 400000000000000000000014 /* DocumentTextExtractor.swift */; };
+		300000000000000000000013 /* PDFKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 400000000000000000000015 /* PDFKit.framework */; };
+		300000000000000000000014 /* DocumentTextExtractorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 400000000000000000000016 /* DocumentTextExtractorTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -58,6 +61,9 @@
 		400000000000000000000011 /* libsqlite3.tbd */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.text-based-dylib-definition; name = libsqlite3.tbd; path = usr/lib/libsqlite3.tbd; sourceTree = SDKROOT; };
 		400000000000000000000012 /* SQLiteIndexStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SQLiteIndexStoreTests.swift; sourceTree = "<group>"; };
 		400000000000000000000013 /* FolderWatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderWatcher.swift; sourceTree = "<group>"; };
+		400000000000000000000014 /* DocumentTextExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentTextExtractor.swift; sourceTree = "<group>"; };
+		400000000000000000000015 /* PDFKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = PDFKit.framework; path = System/Library/Frameworks/PDFKit.framework; sourceTree = SDKROOT; };
+		400000000000000000000016 /* DocumentTextExtractorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentTextExtractorTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -67,6 +73,7 @@
 			files = (
 				300000000000000000000009 /* Carbon.framework in Frameworks */,
 				30000000000000000000000F /* libsqlite3.tbd in Frameworks */,
+				300000000000000000000013 /* PDFKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -87,6 +94,7 @@
 				200000000000000000000004 /* SpotAltTests */,
 				40000000000000000000000B /* Carbon.framework */,
 				400000000000000000000011 /* libsqlite3.tbd */,
+				400000000000000000000015 /* PDFKit.framework */,
 				200000000000000000000002 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -113,6 +121,7 @@
 				40000000000000000000000C /* SearchLocationStore.swift */,
 				40000000000000000000000D /* FilenameIndex.swift */,
 				400000000000000000000013 /* FolderWatcher.swift */,
+				400000000000000000000014 /* DocumentTextExtractor.swift */,
 				400000000000000000000010 /* SQLiteIndexStore.swift */,
 				40000000000000000000000E /* IndexManagerWindowController.swift */,
 				400000000000000000000009 /* Info.plist */,
@@ -127,6 +136,7 @@
 				400000000000000000000008 /* PanelPositioningTests.swift */,
 				40000000000000000000000F /* FilenameIndexTests.swift */,
 				400000000000000000000012 /* SQLiteIndexStoreTests.swift */,
+				400000000000000000000016 /* DocumentTextExtractorTests.swift */,
 			);
 			path = SpotAltTests;
 			sourceTree = "<group>";
@@ -239,6 +249,7 @@
 				30000000000000000000000A /* SearchLocationStore.swift in Sources */,
 				30000000000000000000000B /* FilenameIndex.swift in Sources */,
 				300000000000000000000011 /* FolderWatcher.swift in Sources */,
+				300000000000000000000012 /* DocumentTextExtractor.swift in Sources */,
 				30000000000000000000000E /* SQLiteIndexStore.swift in Sources */,
 				30000000000000000000000C /* IndexManagerWindowController.swift in Sources */,
 			);
@@ -251,6 +262,7 @@
 				300000000000000000000008 /* PanelPositioningTests.swift in Sources */,
 				30000000000000000000000D /* FilenameIndexTests.swift in Sources */,
 				300000000000000000000010 /* SQLiteIndexStoreTests.swift in Sources */,
+				300000000000000000000014 /* DocumentTextExtractorTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

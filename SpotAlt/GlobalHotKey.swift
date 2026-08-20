@@ -60,8 +60,8 @@ final class GlobalHotKey {
             throw RegistrationError.eventHandler(eventStatus)
         }
 
-        var identifier = EventHotKeyID(
-            signature: OSType(0x56455A31), // "VEZ1"
+        let identifier = EventHotKeyID(
+            signature: OSType(0x53504F54), // "SPOT"
             id: 1
         )
 
@@ -92,4 +92,3 @@ final class GlobalHotKey {
         }
     }
 }
-

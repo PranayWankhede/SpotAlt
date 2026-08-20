@@ -24,8 +24,14 @@ enum SQLiteIndexStoreError: Error, LocalizedError {
     }
 }
 
+struct ContentSearchHit {
+    let file: IndexedFile
+    let excerpt: String
+    let rank: Double
+}
+
 final class SQLiteIndexStore {
-    static let schemaVersion = 1
+    static let schemaVersion = 2
 
     private static let transientDestructor = unsafeBitCast(
         -1,
@@ -86,27 +92,39 @@ final class SQLiteIndexStore {
     func replaceIndex(with files: [IndexedFile], roots: [URL]) throws {
         try withWriteLock {
             try transaction {
-                try execute("DELETE FROM search_roots;")
+                let activePaths = Set(roots.map { Self.canonicalPath($0) })
+                for root in try rootRows() where !activePaths.contains(root.path) {
+                    try execute("DELETE FROM search_roots WHERE id = \(root.id);")
+                }
 
                 let insertRoot = try prepare(
-                    "INSERT INTO search_roots(path, last_indexed_at) VALUES (?, ?);"
+                    """
+                    INSERT INTO search_roots(path, last_indexed_at) VALUES (?, ?)
+                    ON CONFLICT(path) DO UPDATE SET
+                        last_indexed_at = excluded.last_indexed_at;
+                    """
                 )
                 defer { sqlite3_finalize(insertRoot) }
 
-                var rootIDs: [String: Int64] = [:]
-                let rootPaths = roots
-                    .map { Self.canonicalPath($0) }
-                    .sorted { $0.count > $1.count }
-
-                for path in rootPaths {
+                for path in activePaths.sorted() {
                     sqlite3_reset(insertRoot)
                     sqlite3_clear_bindings(insertRoot)
                     try bind(path, to: insertRoot, at: 1)
                     try bind(Date().timeIntervalSince1970, to: insertRoot, at: 2)
                     try stepDone(insertRoot)
-                    rootIDs[path] = sqlite3_last_insert_rowid(database)
                 }
 
+                let rootRows = try rootRows()
+                let rootPaths = rootRows.sorted { $0.path.count > $1.path.count }
+                try execute(
+                    "CREATE TEMP TABLE IF NOT EXISTS current_scan_paths(path TEXT PRIMARY KEY) WITHOUT ROWID;"
+                )
+                try execute("DELETE FROM current_scan_paths;")
+
+                let insertScannedPath = try prepare(
+                    "INSERT OR IGNORE INTO current_scan_paths(path) VALUES (?);"
+                )
+                defer { sqlite3_finalize(insertScannedPath) }
                 let insertFile = try prepare(
                     """
                     INSERT INTO files(
@@ -115,22 +133,35 @@ final class SQLiteIndexStore {
                         normalized_filename,
                         full_path,
                         normalized_path,
-                        modified_at
-                    ) VALUES (?, ?, ?, ?, ?, ?);
+                        modified_at,
+                        size_bytes
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(full_path) DO UPDATE SET
+                        root_id = excluded.root_id,
+                        filename = excluded.filename,
+                        normalized_filename = excluded.normalized_filename,
+                        normalized_path = excluded.normalized_path,
+                        modified_at = excluded.modified_at,
+                        size_bytes = excluded.size_bytes;
                     """
                 )
                 defer { sqlite3_finalize(insertFile) }
 
                 for file in files {
-                    guard let rootPath = rootPaths.first(where: {
-                        Self.contains(filePath: file.path, rootPath: $0)
-                    }), let rootID = rootIDs[rootPath] else {
+                    guard let root = rootPaths.first(where: {
+                        Self.contains(filePath: file.path, rootPath: $0.path)
+                    }) else {
                         continue
                     }
 
+                    sqlite3_reset(insertScannedPath)
+                    sqlite3_clear_bindings(insertScannedPath)
+                    try bind(file.path, to: insertScannedPath, at: 1)
+                    try stepDone(insertScannedPath)
+
                     sqlite3_reset(insertFile)
                     sqlite3_clear_bindings(insertFile)
-                    try bind(rootID, to: insertFile, at: 1)
+                    try bind(root.id, to: insertFile, at: 1)
                     try bind(file.name, to: insertFile, at: 2)
                     try bind(SearchTextNormalizer.normalize(file.name), to: insertFile, at: 3)
                     try bind(file.path, to: insertFile, at: 4)
@@ -140,8 +171,17 @@ final class SQLiteIndexStore {
                     } else {
                         sqlite3_bind_null(insertFile, 6)
                     }
+                    if let sizeBytes = file.sizeBytes {
+                        try bind(sizeBytes, to: insertFile, at: 7)
+                    } else {
+                        sqlite3_bind_null(insertFile, 7)
+                    }
                     try stepDone(insertFile)
                 }
+
+                try execute(
+                    "DELETE FROM files WHERE full_path NOT IN (SELECT path FROM current_scan_paths);"
+                )
             }
         }
     }
@@ -199,14 +239,16 @@ final class SQLiteIndexStore {
                         normalized_filename,
                         full_path,
                         normalized_path,
-                        modified_at
-                    ) VALUES (?, ?, ?, ?, ?, ?)
+                        modified_at,
+                        size_bytes
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(full_path) DO UPDATE SET
                         root_id = excluded.root_id,
                         filename = excluded.filename,
                         normalized_filename = excluded.normalized_filename,
                         normalized_path = excluded.normalized_path,
-                        modified_at = excluded.modified_at;
+                        modified_at = excluded.modified_at,
+                        size_bytes = excluded.size_bytes;
                     """
                 )
                 defer { sqlite3_finalize(upsert) }
@@ -236,6 +278,11 @@ final class SQLiteIndexStore {
                     } else {
                         sqlite3_bind_null(upsert, 6)
                     }
+                    if let sizeBytes = file.sizeBytes {
+                        try bind(sizeBytes, to: upsert, at: 7)
+                    } else {
+                        sqlite3_bind_null(upsert, 7)
+                    }
                     try stepDone(upsert)
                 }
             }
@@ -258,7 +305,7 @@ final class SQLiteIndexStore {
             }
             let filter = termClauses.joined(separator: " AND ")
             let sql = """
-                SELECT filename, full_path, modified_at
+                SELECT filename, full_path, modified_at, size_bytes
                 FROM files
                 WHERE \(filter)
                    OR normalized_filename GLOB ?
@@ -302,7 +349,7 @@ final class SQLiteIndexStore {
     func allFiles() throws -> [IndexedFile] {
         try withWriteLock {
             let statement = try prepare(
-                "SELECT filename, full_path, modified_at FROM files ORDER BY full_path;"
+                "SELECT filename, full_path, modified_at, size_bytes FROM files ORDER BY full_path;"
             )
             defer { sqlite3_finalize(statement) }
             return try readFiles(from: statement)
@@ -312,6 +359,167 @@ final class SQLiteIndexStore {
     func fileCount() throws -> Int {
         try withWriteLock {
             try fileCountWithoutLock()
+        }
+    }
+
+    func pendingContentFiles(
+        extractionVersion: Int,
+        limit: Int = 24
+    ) throws -> [IndexedFile] {
+        try withWriteLock {
+            let statement = try prepare(
+                """
+                SELECT filename, full_path, modified_at, size_bytes
+                FROM files
+                WHERE content_index_version <> ?
+                ORDER BY
+                    CASE WHEN size_bytes IS NULL THEN 1 ELSE 0 END,
+                    size_bytes ASC,
+                    full_path ASC
+                LIMIT ?;
+                """
+            )
+            defer { sqlite3_finalize(statement) }
+            try bind(Int64(extractionVersion), to: statement, at: 1)
+            try bind(Int64(limit), to: statement, at: 2)
+            return try readFiles(from: statement)
+        }
+    }
+
+    func applyContentUpdates(
+        _ updates: [FileContentUpdate],
+        extractionVersion: Int
+    ) throws {
+        guard !updates.isEmpty else { return }
+
+        try withWriteLock {
+            try transaction {
+                let findFile = try prepare(
+                    """
+                    SELECT id FROM files
+                    WHERE full_path = ?
+                      AND modified_at IS ?
+                      AND size_bytes IS ?;
+                    """
+                )
+                defer { sqlite3_finalize(findFile) }
+
+                let deleteChunks = try prepare(
+                    "DELETE FROM content_fts WHERE file_id = ?;"
+                )
+                defer { sqlite3_finalize(deleteChunks) }
+
+                let insertChunk = try prepare(
+                    "INSERT INTO content_fts(file_id, chunk_index, content) VALUES (?, ?, ?);"
+                )
+                defer { sqlite3_finalize(insertChunk) }
+
+                let markIndexed = try prepare(
+                    "UPDATE files SET content_index_version = ? WHERE id = ?;"
+                )
+                defer { sqlite3_finalize(markIndexed) }
+
+                for update in updates {
+                    sqlite3_reset(findFile)
+                    sqlite3_clear_bindings(findFile)
+                    try bind(update.file.path, to: findFile, at: 1)
+                    try bind(update.file.modifiedAt?.timeIntervalSince1970, to: findFile, at: 2)
+                    try bind(update.file.sizeBytes, to: findFile, at: 3)
+
+                    guard sqlite3_step(findFile) == SQLITE_ROW else { continue }
+                    let fileID = sqlite3_column_int64(findFile, 0)
+
+                    sqlite3_reset(deleteChunks)
+                    sqlite3_clear_bindings(deleteChunks)
+                    try bind(fileID, to: deleteChunks, at: 1)
+                    try stepDone(deleteChunks)
+
+                    for (chunkIndex, chunk) in update.chunks.enumerated() {
+                        sqlite3_reset(insertChunk)
+                        sqlite3_clear_bindings(insertChunk)
+                        try bind(fileID, to: insertChunk, at: 1)
+                        try bind(Int64(chunkIndex), to: insertChunk, at: 2)
+                        try bind(chunk, to: insertChunk, at: 3)
+                        try stepDone(insertChunk)
+                    }
+
+                    sqlite3_reset(markIndexed)
+                    sqlite3_clear_bindings(markIndexed)
+                    try bind(Int64(extractionVersion), to: markIndexed, at: 1)
+                    try bind(fileID, to: markIndexed, at: 2)
+                    try stepDone(markIndexed)
+                }
+            }
+        }
+    }
+
+    func searchContent(for query: String, limit: Int = 100) throws -> [ContentSearchHit] {
+        guard let matchQuery = Self.ftsMatchQuery(query) else { return [] }
+
+        return try withReadLock {
+            let statement = try prepareRead(
+                """
+                SELECT
+                    files.filename,
+                    files.full_path,
+                    files.modified_at,
+                    files.size_bytes,
+                    snippet(content_fts, 2, '‹', '›', ' … ', 20),
+                    bm25(content_fts, 0.0, 0.0, 1.0)
+                FROM content_fts
+                JOIN files ON files.id = content_fts.file_id
+                WHERE content_fts MATCH ?
+                ORDER BY bm25(content_fts, 0.0, 0.0, 1.0) ASC
+                LIMIT ?;
+                """
+            )
+            defer { sqlite3_finalize(statement) }
+            try bind(matchQuery, to: statement, at: 1)
+            try bind(Int64(max(limit * 4, limit)), to: statement, at: 2)
+
+            var hits: [ContentSearchHit] = []
+            var seenPaths: Set<String> = []
+            while hits.count < limit {
+                let result = sqlite3_step(statement)
+                if result == SQLITE_DONE { break }
+                guard result == SQLITE_ROW else {
+                    throw SQLiteIndexStoreError.execute(
+                        Self.errorMessage(for: readDatabase)
+                    )
+                }
+                guard let name = sqlite3_column_text(statement, 0),
+                      let path = sqlite3_column_text(statement, 1),
+                      let excerpt = sqlite3_column_text(statement, 4)
+                else { continue }
+
+                let pathValue = String(cString: path)
+                guard seenPaths.insert(pathValue).inserted else { continue }
+
+                let modifiedAt: Date?
+                if sqlite3_column_type(statement, 2) == SQLITE_NULL {
+                    modifiedAt = nil
+                } else {
+                    modifiedAt = Date(
+                        timeIntervalSince1970: sqlite3_column_double(statement, 2)
+                    )
+                }
+                let sizeBytes: Int64? = sqlite3_column_type(statement, 3) == SQLITE_NULL
+                    ? nil
+                    : sqlite3_column_int64(statement, 3)
+                hits.append(
+                    ContentSearchHit(
+                        file: IndexedFile(
+                            name: String(cString: name),
+                            path: pathValue,
+                            modifiedAt: modifiedAt,
+                            sizeBytes: sizeBytes
+                        ),
+                        excerpt: String(cString: excerpt),
+                        rank: sqlite3_column_double(statement, 5)
+                    )
+                )
+            }
+            return hits
         }
     }
 
@@ -396,6 +604,49 @@ final class SQLiteIndexStore {
                 try execute("PRAGMA user_version = 1;")
             }
         }
+
+        if version < 2 {
+            try transaction {
+                try execute("ALTER TABLE files ADD COLUMN size_bytes INTEGER;")
+                try execute(
+                    "ALTER TABLE files ADD COLUMN content_index_version INTEGER NOT NULL DEFAULT 0;"
+                )
+                try execute(
+                    """
+                    CREATE VIRTUAL TABLE content_fts USING fts5(
+                        file_id UNINDEXED,
+                        chunk_index UNINDEXED,
+                        content,
+                        tokenize = 'unicode61 remove_diacritics 2'
+                    );
+                    """
+                )
+                try execute(
+                    """
+                    CREATE TRIGGER files_delete_content
+                    BEFORE DELETE ON files
+                    BEGIN
+                        DELETE FROM content_fts WHERE file_id = OLD.id;
+                    END;
+                    """
+                )
+                try execute(
+                    """
+                    CREATE TRIGGER files_invalidate_content
+                    AFTER UPDATE OF modified_at, size_bytes ON files
+                    WHEN OLD.modified_at IS NOT NEW.modified_at
+                      OR OLD.size_bytes IS NOT NEW.size_bytes
+                    BEGIN
+                        DELETE FROM content_fts WHERE file_id = NEW.id;
+                        UPDATE files
+                        SET content_index_version = 0
+                        WHERE id = NEW.id;
+                    END;
+                    """
+                )
+                try execute("PRAGMA user_version = 2;")
+            }
+        }
     }
 
     private func schemaVersion() throws -> Int {
@@ -454,11 +705,15 @@ final class SQLiteIndexStore {
             } else {
                 modifiedAt = Date(timeIntervalSince1970: sqlite3_column_double(statement, 2))
             }
+            let sizeBytes: Int64? = sqlite3_column_type(statement, 3) == SQLITE_NULL
+                ? nil
+                : sqlite3_column_int64(statement, 3)
             files.append(
                 IndexedFile(
                     name: String(cString: name),
                     path: String(cString: path),
-                    modifiedAt: modifiedAt
+                    modifiedAt: modifiedAt,
+                    sizeBytes: sizeBytes
                 )
             )
         }
@@ -527,6 +782,22 @@ final class SQLiteIndexStore {
         let result = sqlite3_bind_double(statement, index, value)
         guard result == SQLITE_OK else {
             throw SQLiteIndexStoreError.bind(String(cString: sqlite3_errstr(result)))
+        }
+    }
+
+    private func bind(_ value: Double?, to statement: OpaquePointer?, at index: Int32) throws {
+        if let value {
+            try bind(value, to: statement, at: index)
+        } else {
+            sqlite3_bind_null(statement, index)
+        }
+    }
+
+    private func bind(_ value: Int64?, to statement: OpaquePointer?, at index: Int32) throws {
+        if let value {
+            try bind(value, to: statement, at: index)
+        } else {
+            sqlite3_bind_null(statement, index)
         }
     }
 
@@ -599,6 +870,20 @@ final class SQLiteIndexStore {
             }
         }
         return "*" + escapedCharacters.joined(separator: "*") + "*"
+    }
+
+    private static func ftsMatchQuery(_ query: String) -> String? {
+        let terms = SearchTextNormalizer.normalize(query)
+            .components(separatedBy: CharacterSet.alphanumerics.inverted)
+            .filter { $0.count >= 2 }
+            .prefix(12)
+        guard !terms.isEmpty else { return nil }
+
+        return terms.map { term in
+            let escaped = term.replacingOccurrences(of: "\"", with: "\"\"")
+            return "\"\(escaped)\"*"
+        }
+        .joined(separator: " AND ")
     }
 
     private static func errorMessage(for database: OpaquePointer?) -> String {

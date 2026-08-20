@@ -23,11 +23,12 @@ login after the user approves that behavior, maintains the local index in the
 background, and presents a centered search panel only when invoked. An optional
 menu-bar item provides indexing status, Settings, pause/resume, and Quit.
 
-SpotAlt is still distributed as a signed and notarized `SpotAlt.app` inside a DMG,
-because that is the native macOS executable format. The bundle contains the
-search engine, indexer, extractors, database support, interface resources, and
-embedding model or runtime. It requires no terminal, package manager, Python,
-Docker, or separately installed service.
+SpotAlt is a native `SpotAlt.app`. During the technical preview it is built and
+installed from source with the repository's one-command installer. A signed and
+notarized DMG remains an option if the project later targets non-technical users.
+The bundle contains the search engine, indexer, extractors, database support, and
+interface resources; it requires no Python, Docker, or separately installed
+service at runtime.
 
 ## Core job
 
@@ -65,7 +66,8 @@ contents mention the airline and trip.
 - Guided setup plus Settings for adding, removing, and viewing indexed folders.
 - Persistent read-only folder access approved through macOS.
 - Filename, full-text, and semantic search with file-level ranking.
-- Text extraction from TXT, Markdown, and text-based PDF files.
+- Text extraction from plain text, source code, searchable PDFs, Word and
+  OpenDocument files, plus formats supported by macOS metadata importers.
 - Automatic background indexing and filesystem change monitoring.
 - A configurable global shortcut and keyboard-first search panel, including a
   guided path for using `Command-Space` as a Spotlight replacement.
@@ -91,10 +93,12 @@ contents mention the airline and trip.
 ## Indexing boundaries
 
 - SpotAlt recursively reads regular files inside approved folders.
-- Hidden files and folders, macOS application/package contents, archives, and
-  system metadata are excluded by default.
+- Hidden files and folders, application packages, archives, and system metadata
+  are excluded by default. Supported document packages such as Pages and RTFD
+  are indexed as single files without traversing their internal contents.
 - Symbolic links are not followed in v0.1.
-- Individual files larger than 100 MB are skipped and shown in diagnostics.
+- Plain-text files larger than 5 MB and structured documents larger than 50 MB
+  are skipped for content extraction but remain searchable by filename.
 - Encrypted, unreadable, unsupported, and malformed files are skipped without
   stopping the rest of the index.
 - Separate file paths remain separate results even when their contents match.
@@ -147,7 +151,7 @@ contents mention the airline and trip.
 ## Deferred until after v0.1
 
 - OCR for images and scanned PDFs.
-- DOCX, RTF, spreadsheets, presentations, EPUB, audio, and video extraction.
+- EPUB, audio, video, and embedded-media extraction.
 - Typo-tolerant/fuzzy matching beyond normal full-text tokenisation.
 - Advanced filters, saved searches, summaries, and chat with documents.
 - Cloud drives, network drives, browser data, and whole-disk indexing.
